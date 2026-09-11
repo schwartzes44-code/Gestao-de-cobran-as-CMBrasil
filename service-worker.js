@@ -1,5 +1,5 @@
-const CACHE='gestao-cobrancas-v0-5';
-const CORE=['./','./index.html','./styles.css?v=0.5.0','./app.js?v=0.5.0','./manifest.webmanifest','./icon.svg'];
+const CACHE='gestao-cobrancas-v0-6';
+const CORE=['./','./index.html','./styles.css?v=0.6.0','./app.js?v=0.6.0','./manifest.webmanifest','./icon.svg'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(CORE)).then(() => self.skipWaiting()));

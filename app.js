@@ -2,7 +2,7 @@ const $=id=>document.getElementById(id);
 const DBKEY='cmbrasil_cobrancas_v01';
 let state=JSON.parse(localStorage.getItem(DBKEY)||'{"clients":{},"summary":null,"lastImport":null}');
 let currentId=null, deferredPrompt=null, showAllPriorities=false;
-const APP_VERSION='0.5.0';
+const APP_VERSION='0.6.0';
 
 function recordKey(agent,code){return `${(agent||'SEM-AGENTE').trim()}::${code}`}
 function migrateState(){
@@ -53,7 +53,7 @@ function migrateState(){
 migrateState();
 
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('./service-worker.js?v=0.5.0',{updateViaCache:'none'}).then(reg=>{
+  navigator.serviceWorker.register('./service-worker.js?v=0.6.0',{updateViaCache:'none'}).then(reg=>{
     reg.update().catch(()=>{});
     const revealUpdate=()=>{if(reg.waiting)$('updateBtn').hidden=false};
     revealUpdate();
@@ -152,10 +152,21 @@ function render(){
 function clientCard(c){const st=statusOf(c), lab={hoje:'Previsão hoje',amanha:'Previsão amanhã',vencidas:'Previsão vencida',sem:'Sem previsão',futura:`Prev. ${localDate(c.promiseDate)}`}[st]||st;const cls=st==='vencidas'?'alert':(st==='hoje'||st==='amanha')?'warn':st==='futura'?'future':'';return `<div class="client" data-id="${c.id}"><div><h3>${c.name}</h3><p>${c.city||'Cidade não informada'} • ${c.agent||'Agente não identificado'}</p><div class="chips"><span class="chip ${cls}">${lab}</span><span class="chip">${(c.installments||[]).length} parcela(s)</span><span class="chip">${oldestDays(c)} dias</span></div></div><div class="money">${brl(totalK(c))}<small>Valor K em atraso</small></div></div>`}
 
 function getClient(id){return state.clients[id]||state.archived[id]}
+function reportDateLabel(c){
+ if(c.reportDate)return `Valores atualizados conforme relatório de ${localDate(c.reportDate)}`;
+ if(c.pdfUpdatedAt)return `Valores conforme PDF importado em ${new Date(c.pdfUpdatedAt).toLocaleDateString('pt-BR')}`;
+ return 'Valores conforme o último PDF importado.';
+}
+function renderInstallments(c){
+ const rows=[...(c.installments||[])].sort((a,b)=>(a.due||'').localeCompare(b.due||''));
+ $('installmentsReportDate').textContent=reportDateLabel(c);
+ $('installmentsBody').innerHTML=rows.length?rows.map(x=>`<tr><td>${localDate(x.due)}</td><td>${brl(x.valorReceber)}</td><td><strong>${brl(x.saldo)}</strong></td></tr>`).join(''):'<tr><td colspan="3" class="installments-empty">Nenhuma parcela em atraso encontrada.</td></tr>';
+}
 function openClient(id){
  const c=getClient(id);if(!c)return;currentId=id;
  $('dName').textContent=c.name;$('dMeta').textContent=`${c.code||''} • ${c.cpf||''}`;
  $('detailGrid').innerHTML=`<div><small>Cidade</small>${c.city||'—'}</div><div><small>Agente</small>${c.agent||'—'}</div><div><small>Telefone</small>${c.phone||'—'}</div><div><small>Último pagamento</small>${c.lastPayment||'—'}</div><div><small>Parcelas em atraso</small>${(c.installments||[]).length}</div><div><small>Maior atraso</small>${oldestDays(c)} dias</div><div><small>Valor K</small>${brl(totalK(c))}</div><div><small>Atualizado pelo PDF</small>${c.pdfUpdatedAt?new Date(c.pdfUpdatedAt).toLocaleString('pt-BR'):'—'}</div>`;
+ renderInstallments(c);
  $('promiseDate').value=c.promiseDate||'';$('note').value='';
  const ph=normalizePhone(c.whatsapp||c.phone);$('whatsappBtn').href=ph?`https://wa.me/${ph.startsWith('55')?ph:'55'+ph}`:'#';$('phoneBtn').href=ph?`tel:+${ph.startsWith('55')?ph:'55'+ph}`:'#';
  const archived=!!state.archived[id];
@@ -190,6 +201,8 @@ function field(block,label,nextLabels){const next=nextLabels.map(x=>x.replace(/[
 function parsePDFText(text){
  text=text.replace(/\r/g,'');
  const summary={};let m;
+ const reportDateBR=(text.match(/Data de emiss[aã]o:\s*(\d{2}\/\d{2}\/\d{4})/i)||[])[1]||'';
+ const reportDate=reportDateBR?isoFromBR(reportDateBR):'';
  m=text.match(/Quantidade de Documentos\s+(\d+)/i);if(m)summary.documents=+m[1];
  m=text.match(/Quantidade de Clientes\s+(\d+)/i);if(m)summary.clients=+m[1];
  m=text.match(/Valor K\s+([\d.]+,\d{2})/i);if(m)summary.valorK=moneyBR(m[1]);
@@ -215,7 +228,7 @@ function parsePDFText(text){
    while((r=rowRe.exec(block))){const rest=r[3], monies=[...rest.matchAll(/[\d.]+,\d{2}/g)].map(x=>moneyBR(x[0]));const beforeMoney=rest.slice(0,rest.search(/[\d.]+,\d{2}/)).trim().split(/\s+/);const nums=beforeMoney.map(x=>/^\d+$/.test(x)?+x:null).filter(x=>x!=null);const days=nums.length?nums[nums.length-1]:0;installments.push({parcel:r[1],due:isoFromBR(r[2]),daysLate:days,valorK:monies[0]||0,valorReceber:monies[1]||0,saldo:monies[monies.length-1]||0})}
    clients.push({id:recordKey(agent,code),code,name,cpf,agent,city,phone,whatsapp:wa,lastPayment,activity,line,address,installments});
  }
- return {summary,clients,agent:globalAgent||clients[0]?.agent||''};
+ return {summary,clients,agent:globalAgent||clients[0]?.agent||'',reportDate};
 }
 
 async function extractPDF(file){
@@ -238,7 +251,7 @@ $('pdfInput').onchange=async e=>{const file=e.target.files[0];if(!file)return;co
    const old=state.clients[c.id]||state.archived[c.id];
    if(old){c.history=old.history||[];c.promiseDate=old.promiseDate||'';c.paid=!!old.paid;preserved++;if(state.archived[c.id]){delete state.archived[c.id];reactivated++}}
    else{c.history=[];c.promiseDate='';c.paid=false}
-   c.archived=false;c.pdfUpdatedAt=now;state.clients[c.id]=c;
+   c.archived=false;c.pdfUpdatedAt=now;c.reportDate=parsed.reportDate||c.reportDate||old?.reportDate||'';state.clients[c.id]=c;
  }
  state.summary=parsed.summary;state.lastImport=now;state.lastAgent=agent;state.summariesByAgent[agent]=parsed.summary;state.lastImportsByAgent[agent]=now;save();
  const docs=parsed.clients.reduce((s,c)=>s+c.installments.length,0);const ok=(!parsed.summary.clients||parsed.summary.clients===parsed.clients.length)&&(!parsed.summary.documents||parsed.summary.documents===docs);

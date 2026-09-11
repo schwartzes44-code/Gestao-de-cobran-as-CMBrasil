@@ -44,3 +44,19 @@
 .promise-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}.promise-row label{margin:12px 0 0}.danger-button{background:#4a2424!important;color:#ffc8c8!important;border:1px solid #7a3434!important;margin-bottom:0;white-space:nowrap}
 .history-item{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.history-main{min-width:0}.history-delete{background:#3a2020!important;color:#ffc8c8!important;padding:7px 10px!important;font-size:12px;flex:0 0 auto}
 @media(max-width:720px){.stats-actions{grid-template-columns:repeat(2,1fr)}.stats-metrics{grid-template-columns:1fr 1fr}.stats-metrics .money-stat{grid-column:1/-1}.promise-row{grid-template-columns:1fr}.danger-button{width:100%}.history-item{align-items:center}.top-actions{gap:5px}.version-badge{display:none}}
+
+
+/* v0.6 — detalhamento individual das parcelas em atraso */
+.installments-section{margin:8px 0 14px;background:#111113;border:1px solid var(--line);border-radius:14px;padding:12px}
+.installments-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px}
+.installments-head h3{margin:0 0 3px;font-size:15px}
+.installments-head small{color:var(--muted)}
+.installments-table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+.installments-table{width:100%;border-collapse:collapse;min-width:430px;background:#0d0d0f}
+.installments-table th,.installments-table td{padding:10px 12px;border-bottom:1px solid #242429;text-align:left;white-space:nowrap}
+.installments-table th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);background:#151517}
+.installments-table th:nth-child(2),.installments-table th:nth-child(3),.installments-table td:nth-child(2),.installments-table td:nth-child(3){text-align:right}
+.installments-table tbody tr:last-child td{border-bottom:0}
+.installments-table td strong{color:var(--gold)}
+.installments-empty{text-align:center!important;color:var(--muted)!important;padding:18px!important}
+@media(max-width:720px){.installments-section{padding:10px}.installments-table th,.installments-table td{padding:9px 10px}}

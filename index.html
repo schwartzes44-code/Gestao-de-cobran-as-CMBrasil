@@ -7,7 +7,7 @@
   <title>Gestão de Cobranças</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=0.5.0" />
+  <link rel="stylesheet" href="styles.css?v=0.6.0" />
 </head>
 <body>
   <header class="topbar">
@@ -15,7 +15,7 @@
       <div class="brand">GESTÃO DE COBRANÇAS</div>
       <div class="subbrand">CMBrasil • acompanhamento de atrasos</div>
     </div>
-    <div class="top-actions"><span class="version-badge">v0.5</span><button class="ghost" id="updateBtn" hidden>Atualizar app</button><button class="ghost" id="installBtn" hidden>Instalar</button></div>
+    <div class="top-actions"><span class="version-badge">v0.6</span><button class="ghost" id="updateBtn" hidden>Atualizar app</button><button class="ghost" id="installBtn" hidden>Instalar</button></div>
   </header>
 
   <main class="wrap">
@@ -102,6 +102,20 @@
     <form method="dialog" class="dialog-card" id="clientForm">
       <div class="dialog-head"><div><h2 id="dName"></h2><p id="dMeta"></p></div><button class="x" value="cancel">×</button></div>
       <div class="detail-grid" id="detailGrid"></div>
+      <section class="installments-section">
+        <div class="installments-head">
+          <div>
+            <h3>Parcelas em atraso</h3>
+            <small id="installmentsReportDate">Valores conforme o último PDF importado.</small>
+          </div>
+        </div>
+        <div class="installments-table-wrap">
+          <table class="installments-table">
+            <thead><tr><th>Vencimento</th><th>$ Receber</th><th>$ Saldo</th></tr></thead>
+            <tbody id="installmentsBody"></tbody>
+          </table>
+        </div>
+      </section>
       <div class="contact-actions">
         <a id="whatsappBtn" class="primary" target="_blank" rel="noopener">Abrir WhatsApp</a>
         <a id="phoneBtn" class="secondary">Ligar</a>
@@ -128,6 +142,6 @@
   </dialog>
 
   <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@2.16.105/build/pdf.min.js"></script>
-  <script src="app.js?v=0.5.0"></script>
+  <script src="app.js?v=0.6.0"></script>
 </body>
 </html>
