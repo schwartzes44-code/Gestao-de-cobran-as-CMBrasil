@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#111111" />
+  <title>Gestão de Cobranças</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <div class="brand">GESTÃO DE COBRANÇAS</div>
+      <div class="subbrand">CMBrasil • acompanhamento de atrasos</div>
+    </div>
+    <button class="ghost" id="installBtn" hidden>Instalar</button>
+  </header>
+
+  <main class="wrap">
+    <section class="stats" id="stats">
+      <button class="stat" data-filter="hoje"><span id="sHoje">0</span><small>Previsões hoje</small></button>
+      <button class="stat" data-filter="amanha"><span id="sAmanha">0</span><small>Previsões amanhã</small></button>
+      <button class="stat danger" data-filter="vencidas"><span id="sVencidas">0</span><small>Previsões vencidas</small></button>
+      <button class="stat" data-filter="todos"><span id="sClientes">0</span><small>Clientes em atraso</small></button>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h1>Carteira em atraso</h1>
+          <p id="lastImport">Nenhum PDF importado.</p>
+        </div>
+        <label class="primary file-btn">Importar PDF
+          <input id="pdfInput" type="file" accept="application/pdf" hidden />
+        </label>
+      </div>
+      <div id="importStatus" class="notice" hidden></div>
+      <div class="toolbar">
+        <input id="search" placeholder="Buscar cliente, cidade ou CPF" />
+        <select id="filter">
+          <option value="todos">Todos</option>
+          <option value="hoje">Previsão hoje</option>
+          <option value="amanha">Previsão amanhã</option>
+          <option value="vencidas">Previsão vencida</option>
+          <option value="sem">Sem previsão</option>
+        </select>
+      </div>
+      <div id="clientList" class="client-list"></div>
+    </section>
+
+    <section class="panel split">
+      <div>
+        <h2>Resumo do último PDF</h2>
+        <div class="summary-grid">
+          <div><small>Documentos</small><strong id="sumDocs">—</strong></div>
+          <div><small>Clientes</small><strong id="sumClients">—</strong></div>
+          <div><small>Valor K</small><strong id="sumValorK">—</strong></div>
+          <div><small>Valor a receber</small><strong id="sumReceber">—</strong></div>
+        </div>
+      </div>
+      <div>
+        <h2>Dados</h2>
+        <div class="actions">
+          <button id="backupBtn">Exportar backup</button>
+          <label class="secondary file-btn">Restaurar backup<input id="restoreInput" type="file" accept="application/json" hidden /></label>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="clientDialog">
+    <form method="dialog" class="dialog-card" id="clientForm">
+      <div class="dialog-head"><div><h2 id="dName"></h2><p id="dMeta"></p></div><button class="x" value="cancel">×</button></div>
+      <div class="detail-grid" id="detailGrid"></div>
+      <div class="contact-actions">
+        <a id="whatsappBtn" class="primary" target="_blank" rel="noopener">Abrir WhatsApp</a>
+        <a id="phoneBtn" class="secondary">Ligar</a>
+      </div>
+      <hr />
+      <label>Previsão de pagamento<input type="date" id="promiseDate" /></label>
+      <label>Observação da cobrança<textarea id="note" rows="4" placeholder="Ex.: cliente informou que pagará na sexta-feira..."></textarea></label>
+      <div class="dialog-actions">
+        <button type="button" class="secondary" id="markPaid">Marcar como pago</button>
+        <button type="button" class="primary" id="saveCollection">Salvar cobrança</button>
+      </div>
+      <div>
+        <h3>Histórico</h3>
+        <div id="history" class="history"></div>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@2.16.105/build/pdf.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
