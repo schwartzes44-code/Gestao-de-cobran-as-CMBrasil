@@ -50,7 +50,9 @@ function applyCloudIdentity(){
     ? `Base central conectada • ${cloud.carteiras.length} carteira(s) cadastrada(s)`
     : `Base central conectada • carteira ${codigos.join(', ')||'não vinculada'}`;
   byId('managerImportLabel').hidden=!gestor;
+  byId('managerImportLabel').style.display=gestor?'inline-flex':'none';
   byId('localDataPanel').hidden=!gestor;
+  byId('localDataPanel').style.display=gestor?'grid':'none';
   byId('agentFilter').disabled=!gestor;
   byId('appShell').hidden=false;
   byId('authGate').hidden=true;

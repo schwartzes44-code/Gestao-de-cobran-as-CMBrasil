@@ -2,7 +2,8 @@ const $=id=>document.getElementById(id);
 const DBKEY='cmbrasil_cobrancas_v01';
 let state=JSON.parse(localStorage.getItem(DBKEY)||'{"clients":{},"summary":null,"lastImport":null}');
 let currentId=null, deferredPrompt=null, showAllPriorities=false;
-const APP_VERSION='1.0.0-alpha.1';
+let cloudClients={}, cloudSummary=null, cloudLastImport=null;
+const APP_VERSION='1.0.0-alpha.2';
 
 function recordKey(agent,code){return `${(agent||'SEM-AGENTE').trim()}::${code}`}
 function migrateState(){
@@ -53,7 +54,7 @@ function migrateState(){
 migrateState();
 
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('./service-worker.js?v=1.0.0a1',{updateViaCache:'none'}).then(reg=>{
+  navigator.serviceWorker.register('./service-worker.js?v=1.0.0a2',{updateViaCache:'none'}).then(reg=>{
     reg.update().catch(()=>{});
     const revealUpdate=()=>{if(reg.waiting)$('updateBtn').hidden=false};
     revealUpdate();
@@ -81,11 +82,11 @@ function daysSinceISODateTime(iso){if(!iso)return null;const d=new Date(iso);if(
 function daysSinceCollection(c){return daysSinceISODateTime(lastCollectionAt(c))}
 function priorityInfo(c){const st=statusOf(c),since=daysSinceCollection(c);if(st==='vencidas')return{rank:0,label:'Promessa vencida',cls:'critical',detail:`Prevista para ${localDate(c.promiseDate)}`};if(st==='hoje')return{rank:1,label:'Cobrar hoje',cls:'today',detail:'Pagamento previsto para hoje'};if(since===null)return{rank:2,label:'Sem histórico de cobrança',cls:'stale',detail:`${oldestDays(c)} dias de atraso`};if(since>=5)return{rank:3,label:`Sem ação há ${since} dias`,cls:'stale',detail:'Revisar contato e registrar nova ação'};return null}
 function oldestDays(c){return Math.max(0,...(c.installments||[]).map(x=>x.daysLate||0))}
-function totalK(c){return (c.installments||[]).reduce((s,x)=>s+(x.valorK||0),0)}
+function totalK(c){return c.valorKTotal!=null?Number(c.valorKTotal||0):(c.installments||[]).reduce((s,x)=>s+(x.valorK||0),0)}
 function normalizePhone(s){return (s||'').replace(/\D/g,'')}
 function activeClients(){
  const cloud=window.CMCloud;
- if(cloud?.ready && cloud.profile?.perfil!=='gestor') return []; // alpha: agentes só receberão clientes quando a sincronização central entrar na próxima etapa
+ if(cloud?.ready) return Object.values(cloudClients).filter(c=>!c.paid&&!c.archived);
  return Object.values(state.clients).filter(c=>!c.paid&&!c.archived)
 }
 function agentsAvailable(){return [...new Set(activeClients().map(c=>c.agent).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'))}
@@ -136,15 +137,15 @@ function render(){
  $('sClientes').textContent=arr.length;
  $('sDocumentos').textContent=arr.reduce((s,c)=>s+(c.installments||[]).length,0);
  $('sValorK').textContent=brl(arr.reduce((s,c)=>s+totalK(c),0));
- $('sArquivados').textContent=Object.keys(state.archived||{}).length;
+ $('sArquivados').textContent=window.CMCloud?.ready?0:Object.keys(state.archived||{}).length;
  $('sHoje').textContent=arr.filter(c=>statusOf(c)==='hoje').length;
  $('sAmanha').textContent=arr.filter(c=>statusOf(c)==='amanha').length;
  $('sVencidas').textContent=arr.filter(c=>statusOf(c)==='vencidas').length;
  $('sFuturas').textContent=arr.filter(c=>statusOf(c)==='futura').length;
  renderPriorities(arr);
- $('lastImport').textContent=state.lastImport?`Última atualização pelo PDF: ${new Date(state.lastImport).toLocaleString('pt-BR')}`:'Nenhum PDF importado.';
- const s=state.summary||{};
- $('summaryAgent').textContent=state.lastAgent?` • ${state.lastAgent}`:'';
+ $('lastImport').textContent=cloudLastImport?`Última atualização pelo PDF: ${new Date(cloudLastImport).toLocaleString('pt-BR')}`:(state.lastImport?`Última atualização pelo PDF: ${new Date(state.lastImport).toLocaleString('pt-BR')}`:'Nenhum PDF importado.');
+ const s=cloudSummary||state.summary||{};
+ $('summaryAgent').textContent=window.CMCloud?.ready?'':(state.lastAgent?` • ${state.lastAgent}`:'');
  $('sumDocs').textContent=s.documents??'—';$('sumClients').textContent=s.clients??'—';$('sumValorK').textContent=s.valorK!=null?brl(s.valorK):'—';$('sumReceber').textContent=s.valorReceber!=null?brl(s.valorReceber):'—';
  const q=$('search').value.trim().toLowerCase(),f=$('filter').value;
  let filtered=arr.filter(c=>!q||[c.name,c.city,c.cpf,c.code,c.agent].join(' ').toLowerCase().includes(q));
@@ -155,7 +156,7 @@ function render(){
 }
 function clientCard(c){const st=statusOf(c), lab={hoje:'Previsão hoje',amanha:'Previsão amanhã',vencidas:'Previsão vencida',sem:'Sem previsão',futura:`Prev. ${localDate(c.promiseDate)}`}[st]||st;const cls=st==='vencidas'?'alert':(st==='hoje'||st==='amanha')?'warn':st==='futura'?'future':'';return `<div class="client" data-id="${c.id}"><div><h3>${c.name}</h3><p>${c.city||'Cidade não informada'} • ${c.agent||'Agente não identificado'}</p><div class="chips"><span class="chip ${cls}">${lab}</span><span class="chip">${(c.installments||[]).length} parcela(s)</span><span class="chip">${oldestDays(c)} dias</span></div></div><div class="money">${brl(totalK(c))}<small>Valor K em atraso</small></div></div>`}
 
-function getClient(id){return state.clients[id]||state.archived[id]}
+function getClient(id){return cloudClients[id]||state.clients[id]||state.archived[id]}
 function reportDateLabel(c){
  if(c.reportDate)return `Valores atualizados conforme relatório de ${localDate(c.reportDate)}`;
  if(c.pdfUpdatedAt)return `Valores conforme PDF importado em ${new Date(c.pdfUpdatedAt).toLocaleDateString('pt-BR')}`;
@@ -173,8 +174,8 @@ function openClient(id){
  renderInstallments(c);
  $('promiseDate').value=c.promiseDate||'';$('note').value='';
  const ph=normalizePhone(c.whatsapp||c.phone);$('whatsappBtn').href=ph?`https://wa.me/${ph.startsWith('55')?ph:'55'+ph}`:'#';$('phoneBtn').href=ph?`tel:+${ph.startsWith('55')?ph:'55'+ph}`:'#';
- const archived=!!state.archived[id];
- $('saveCollection').disabled=archived;$('markPaid').disabled=archived;$('promiseDate').disabled=archived;$('note').disabled=archived;
+ const archived=window.CMCloud?.ready?false:!!state.archived[id];
+ $('saveCollection').disabled=archived;$('markPaid').disabled=archived||!!window.CMCloud?.ready;$('markPaid').title=window.CMCloud?.ready?'Marcação de pago será centralizada na próxima etapa':'';$('promiseDate').disabled=archived;$('note').disabled=archived;
  $('clearPromise').disabled=archived||!c.promiseDate;$('clearPromise').hidden=!c.promiseDate;
  renderHistory(c,archived);$('clientDialog').showModal();
 }
@@ -183,20 +184,42 @@ function renderHistory(c,archived=false){
  $('history').innerHTML=entries.length?entries.map(({h,i})=>`<div class="history-item"><div class="history-main"><strong>${h.note||h.type}</strong><br><small>${new Date(h.at).toLocaleString('pt-BR')}${h.promiseDate?' • previsão '+localDate(h.promiseDate):''}</small></div>${archived?'':`<button type="button" class="history-delete" data-history-index="${i}" title="Excluir este registro">Excluir</button>`}</div>`).join(''):'<div class="empty">Sem histórico.</div>';
  document.querySelectorAll('[data-history-index]').forEach(btn=>btn.onclick=()=>deleteHistoryItem(Number(btn.dataset.historyIndex)));
 }
-function deleteHistoryItem(index){
- const c=state.clients[currentId];if(!c||!c.history||!c.history[index])return;
+async function reloadCentralAndReopen(){
+ const keep=currentId;await loadCentralData();render();if(keep&&cloudClients[keep])openClient(keep);
+}
+async function deleteHistoryItem(index){
+ const c=getClient(currentId);if(!c||!c.history||!c.history[index])return;
  if(!confirm('Excluir esta observação do histórico? Esta ação não pode ser desfeita.'))return;
+ if(window.CMCloud?.ready){
+   const h=c.history[index];
+   if(!h.cloudId){alert('Este registro não possui identificação central.');return}
+   const {error}=await window.CMCloud.client.from('cobrancas').delete().eq('id',h.cloudId);
+   if(error){alert('Não foi possível excluir: '+error.message);return}
+   await reloadCentralAndReopen();return;
+ }
  c.history.splice(index,1);save();openClient(currentId);
 }
-$('clearPromise').onclick=()=>{
- const c=state.clients[currentId];if(!c||!c.promiseDate)return;
+$('clearPromise').onclick=async()=>{
+ const c=getClient(currentId);if(!c||!c.promiseDate)return;
  if(!confirm(`Remover o agendamento de ${localDate(c.promiseDate)} deste cliente?`))return;
- const date=c.promiseDate;c.promiseDate='';
- (c.history||[]).forEach(h=>{if(h.promiseDate===date)h.promiseDate=''});
- save();openClient(currentId);
+ if(window.CMCloud?.ready){
+   const {error}=await window.CMCloud.client.from('cobrancas').insert({cliente_id:c.cloudId,usuario_id:window.CMCloud.user.id,observacao:'[AGENDAMENTO_REMOVIDO]',previsao_pagamento:null});
+   if(error){alert('Não foi possível remover o agendamento: '+error.message);return}
+   await reloadCentralAndReopen();return;
+ }
+ const date=c.promiseDate;c.promiseDate='';(c.history||[]).forEach(h=>{if(h.promiseDate===date)h.promiseDate=''});save();openClient(currentId);
 };
-$('saveCollection').onclick=()=>{const c=state.clients[currentId];if(!c)return;const note=$('note').value.trim(),promiseDate=$('promiseDate').value;if(!note&&!promiseDate){alert('Informe uma observação ou uma previsão de pagamento.');return}c.promiseDate=promiseDate;c.history=c.history||[];c.history.push({type:'cobranca',note:note||'Agendamento registrado',promiseDate,at:new Date().toISOString()});save();openClient(currentId)};
-$('markPaid').onclick=()=>{const c=state.clients[currentId];if(!c)return;c.paid=true;c.history=c.history||[];c.history.push({type:'pago',note:'Marcado como pago',at:new Date().toISOString()});save();$('clientDialog').close()};
+$('saveCollection').onclick=async()=>{
+ const c=getClient(currentId);if(!c)return;const note=$('note').value.trim(),promiseDate=$('promiseDate').value;
+ if(!note&&!promiseDate){alert('Informe uma observação ou uma previsão de pagamento.');return}
+ if(window.CMCloud?.ready){
+   const {error}=await window.CMCloud.client.from('cobrancas').insert({cliente_id:c.cloudId,usuario_id:window.CMCloud.user.id,observacao:note||'Agendamento registrado',previsao_pagamento:promiseDate||null});
+   if(error){alert('Não foi possível salvar a cobrança: '+error.message);return}
+   await reloadCentralAndReopen();return;
+ }
+ c.promiseDate=promiseDate;c.history=c.history||[];c.history.push({type:'cobranca',note:note||'Agendamento registrado',promiseDate,at:new Date().toISOString()});save();openClient(currentId)
+};
+$('markPaid').onclick=()=>{if(window.CMCloud?.ready){alert('A função “Marcar como pago” será integrada à base central na próxima etapa.');return}const c=state.clients[currentId];if(!c)return;c.paid=true;c.history=c.history||[];c.history.push({type:'pago',note:'Marcado como pago',at:new Date().toISOString()});save();$('clientDialog').close()};
 
 $('search').oninput=render;$('filter').onchange=()=>{showAllPriorities=false;render()};$('agentFilter').onchange=()=>{showAllPriorities=false;render()};$('priorityToggle').onclick=()=>{showAllPriorities=!showAllPriorities;render()};document.querySelectorAll('.stat[data-filter]').forEach(b=>b.onclick=()=>{$('filter').value=b.dataset.filter;render()});
 
@@ -241,27 +264,38 @@ async function extractPDF(file){
  const data=await file.arrayBuffer(),pdf=await pdfjsLib.getDocument({data}).promise;let full='';
  for(let p=1;p<=pdf.numPages;p++){const page=await pdf.getPage(p),tc=await page.getTextContent();let line='';for(const item of tc.items){line+=item.str+(item.hasEOL?'\n':' ')}full+=line+'\n'}return full;
 }
-$('pdfInput').onchange=async e=>{const file=e.target.files[0];if(!file)return;const box=$('importStatus');box.hidden=false;box.className='notice';box.textContent='Lendo PDF...';try{const text=await extractPDF(file),parsed=parsePDFText(text);if(!parsed.clients.length)throw new Error('Nenhum cliente foi reconhecido neste PDF.');
- const agent=parsed.agent||parsed.clients[0]?.agent;if(!agent)throw new Error('Não foi possível identificar o Agente de Crédito deste PDF.');
- const now=new Date().toISOString(), incoming=new Set(parsed.clients.map(c=>c.id)); let preserved=0,archivedNow=0,reactivated=0;
- // v0.3: só arquiva quem saiu da carteira DO MESMO AGENTE.
- for(const [id,old] of Object.entries({...state.clients})){
-   if(old.agent===agent && !incoming.has(id)){
-     old.archived=true; old.archivedAt=now; old.archiveReason=`Ausente no último PDF do agente ${agent}`;
-     state.archived[id]=old; delete state.clients[id]; archivedNow++;
-   }
- }
- for(const c of parsed.clients){
-   const old=state.clients[c.id]||state.archived[c.id];
-   if(old){c.history=old.history||[];c.promiseDate=old.promiseDate||'';c.paid=!!old.paid;preserved++;if(state.archived[c.id]){delete state.archived[c.id];reactivated++}}
-   else{c.history=[];c.promiseDate='';c.paid=false}
-   c.archived=false;c.pdfUpdatedAt=now;c.reportDate=parsed.reportDate||c.reportDate||old?.reportDate||'';state.clients[c.id]=c;
- }
- state.summary=parsed.summary;state.lastImport=now;state.lastAgent=agent;state.summariesByAgent[agent]=parsed.summary;state.lastImportsByAgent[agent]=now;save();
- const docs=parsed.clients.reduce((s,c)=>s+c.installments.length,0);const ok=(!parsed.summary.clients||parsed.summary.clients===parsed.clients.length)&&(!parsed.summary.documents||parsed.summary.documents===docs);
- const totalActive=activeClients().length, agentCount=agentsAvailable().length;
- box.className='notice '+(ok?'ok':'bad');box.textContent=ok?`Importação conferida: ${agent} — ${parsed.clients.length} clientes e ${docs} documentos. Histórico preservado em ${preserved} cliente(s). ${archivedNow?archivedNow+' cliente(s) do '+agent+' arquivado(s). ':''}${reactivated?reactivated+' cliente(s) reativado(s). ':''}Consolidado: ${totalActive} clientes em ${agentCount} carteira(s).`:`Importação concluída, mas a conferência do Resumo Geral apresentou divergência. Revise antes de usar.`;
- }catch(err){box.className='notice bad';box.textContent='Erro: '+err.message}finally{e.target.value=''}};
+async function importParsedToCloud(file,parsed){
+ const cloud=window.CMCloud;if(cloud.profile?.perfil!=='gestor')throw new Error('Somente o gestor pode importar PDFs.');
+ const code=(parsed.agent||parsed.clients[0]?.agent||'').trim();
+ const carteira=(cloud.carteiras||[]).find(c=>c.codigo.toUpperCase()===code.toUpperCase());
+ if(!carteira)throw new Error(`A carteira ${code||'não identificada'} não está cadastrada na base central.`);
+ const now=new Date().toISOString();
+ let q=cloud.client.from('clientes').update({ativo:false,atualizado_pdf_em:now}).eq('carteira_id',carteira.id);
+ let {error}=await q;if(error)throw error;
+ const rows=parsed.clients.map(c=>({carteira_id:carteira.id,codigo:c.code,nome:c.name,cpf_cnpj:c.cpf||null,cidade:c.city||null,telefone:c.whatsapp||c.phone||null,ultimo_pagamento:c.lastPayment?isoFromBR(c.lastPayment):null,parcelas_atraso:(c.installments||[]).length,maior_atraso:oldestDays(c),valor_k:totalK(c),ativo:true,atualizado_pdf_em:now}));
+ const up=await cloud.client.from('clientes').upsert(rows,{onConflict:'carteira_id,codigo'}).select('id,codigo');
+ if(up.error)throw up.error;
+ const idByCode=Object.fromEntries((up.data||[]).map(x=>[String(x.codigo),x.id]));
+ const ids=Object.values(idByCode);
+ if(ids.length){const del=await cloud.client.from('parcelas').delete().in('cliente_id',ids);if(del.error)throw del.error;}
+ const parcelas=[];
+ for(const c of parsed.clients){const cid=idByCode[String(c.code)];for(const x of c.installments||[])parcelas.push({cliente_id:cid,vencimento:x.due,valor_receber:Number(x.valorReceber||0),saldo:Number(x.saldo||0),dias_atraso:Number(x.daysLate||0),atualizado_pdf_em:now})}
+ if(parcelas.length){const ins=await cloud.client.from('parcelas').insert(parcelas);if(ins.error)throw ins.error;}
+ const docs=parcelas.length;
+ const imp=await cloud.client.from('importacoes').insert({carteira_id:carteira.id,usuario_id:cloud.user.id,nome_arquivo:file.name,data_relatorio:parsed.reportDate||null,clientes:parsed.clients.length,documentos:docs,valor_k:Number(parsed.summary?.valorK||parsed.clients.reduce((a,c)=>a+totalK(c),0))});
+ if(imp.error)throw imp.error;
+ const cu=await cloud.client.from('carteiras').update({ultima_atualizacao:now}).eq('id',carteira.id);if(cu.error)throw cu.error;
+ await loadCentralData();
+ return {code,clientes:parsed.clients.length,docs};
+}
+$('pdfInput').onchange=async e=>{
+ const file=e.target.files[0];if(!file)return;const box=$('importStatus');box.hidden=false;box.className='notice';box.textContent='Lendo PDF e sincronizando com a base central...';
+ try{
+   const text=await extractPDF(file),parsed=parsePDFText(text);if(!parsed.clients.length)throw new Error('Nenhum cliente foi reconhecido neste PDF.');
+   if(window.CMCloud?.ready){const r=await importParsedToCloud(file,parsed);box.className='notice ok';box.textContent=`Base central atualizada: ${r.code} — ${r.clientes} clientes e ${r.docs} documentos. Os agentes vinculados já podem acessar os dados.`;render();}
+   else throw new Error('A base central ainda não está conectada.');
+ }catch(err){box.className='notice bad';box.textContent='Erro: '+err.message}finally{e.target.value=''}
+};
 
 function renderArchived(){const selected=$('agentFilter').value;const arr=Object.values(state.archived||{}).filter(c=>selected==='todos'||c.agent===selected).sort((a,b)=>(b.archivedAt||'').localeCompare(a.archivedAt||''));$('archivedList').innerHTML=arr.length?arr.map(c=>`<div class="client archived-client" data-id="${c.id}"><div><h3>${c.name}</h3><p>${c.city||'Cidade não informada'} • ${c.agent||'Agente não identificado'}</p><div class="chips"><span class="chip">Arquivado ${c.archivedAt?new Date(c.archivedAt).toLocaleDateString('pt-BR'):''}</span><span class="chip">${(c.installments||[]).length} parcela(s) no último PDF</span></div></div><div class="money">${brl(totalK(c))}<small>Último Valor K registrado</small></div></div>`).join(''):'<div class="empty">Nenhum cliente arquivado para este filtro.</div>';document.querySelectorAll('.archived-client').forEach(el=>el.onclick=()=>openClient(el.dataset.id))}
 $('archivedBtn').onclick=()=>{renderArchived();$('archivedDialog').showModal()};
@@ -269,7 +303,34 @@ $('archivedBtn').onclick=()=>{renderArchived();$('archivedDialog').showModal()};
 $('backupBtn').onclick=()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='backup-gestao-cobrancas-'+todayISO()+'.json';a.click();URL.revokeObjectURL(a.href)};
 $('restoreInput').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const obj=JSON.parse(await f.text());if(!obj.clients)throw 0;state=obj;migrateState();render();alert('Backup restaurado com sucesso.')}catch{alert('Arquivo de backup inválido.')}e.target.value=''};
 
+async function loadCentralData(){
+ const cloud=window.CMCloud;if(!cloud?.ready)return;
+ const {data:clients,error}=await cloud.client.from('clientes').select('id,carteira_id,codigo,nome,cpf_cnpj,cidade,telefone,ultimo_pagamento,parcelas_atraso,maior_atraso,valor_k,ativo,atualizado_pdf_em,parcelas(id,vencimento,valor_receber,saldo,dias_atraso)').eq('ativo',true);
+ if(error)throw error;
+ const {data:hist,error:herr}=await cloud.client.from('cobrancas').select('id,cliente_id,usuario_id,observacao,previsao_pagamento,created_at').order('created_at',{ascending:true});
+ if(herr)throw herr;
+ const byClient={};for(const h of hist||[])(byClient[h.cliente_id]??=[]).push(h);
+ const carteiraById=Object.fromEntries((cloud.carteiras||[]).map(c=>[c.id,c]));
+ const out={};
+ for(const row of clients||[]){
+   const carteira=carteiraById[row.carteira_id];if(!carteira)continue;
+   const hs=byClient[row.id]||[];let promiseDate='';const history=[];
+   for(const h of hs){
+     if(h.observacao==='[AGENDAMENTO_REMOVIDO]'){promiseDate='';history.push({cloudId:h.id,type:'cobranca',note:'Agendamento removido',promiseDate:'',at:h.created_at});continue}
+     if(h.previsao_pagamento)promiseDate=h.previsao_pagamento;
+     history.push({cloudId:h.id,type:'cobranca',note:h.observacao||'Cobrança registrada',promiseDate:h.previsao_pagamento||'',at:h.created_at});
+   }
+   const key=recordKey(carteira.codigo,row.codigo);
+   out[key]={id:key,cloudId:row.id,code:row.codigo,name:row.nome,cpf:row.cpf_cnpj||'',agent:carteira.codigo,city:row.cidade||'',phone:row.telefone||'',whatsapp:row.telefone||'',lastPayment:row.ultimo_pagamento?localDate(row.ultimo_pagamento):'',installments:(row.parcelas||[]).map(x=>({cloudId:x.id,due:x.vencimento,daysLate:x.dias_atraso||0,valorReceber:Number(x.valor_receber||0),saldo:Number(x.saldo||0),valorK:0})),valorKTotal:Number(row.valor_k||0),promiseDate,history,paid:false,archived:false,pdfUpdatedAt:row.atualizado_pdf_em||'',reportDate:''};
+ }
+ cloudClients=out;
+ const {data:imports}=await cloud.client.from('importacoes').select('clientes,documentos,valor_k,created_at').order('created_at',{ascending:false}).limit(1);
+ cloudLastImport=imports?.[0]?.created_at||null;
+ const arr=Object.values(out),docs=arr.reduce((a,c)=>a+(c.installments||[]).length,0),receber=arr.reduce((a,c)=>a+(c.installments||[]).reduce((b,x)=>b+Number(x.valorReceber||0),0),0),vk=arr.reduce((a,c)=>a+totalK(c),0);
+ cloudSummary={clients:arr.length,documents:docs,valorK:vk,valorReceber:receber};
+}
+
 // Alerta interno ao abrir o app (consolidado de todas as carteiras ativas).
 setTimeout(()=>{const arr=activeClients();const hoje=arr.filter(c=>statusOf(c)==='hoje').length,amanha=arr.filter(c=>statusOf(c)==='amanha').length,venc=arr.filter(c=>statusOf(c)==='vencidas').length,fut=arr.filter(c=>statusOf(c)==='futura').length;if(hoje||amanha||venc||fut){$('importStatus').hidden=false;$('importStatus').className='notice';$('importStatus').textContent=`Atenção: ${hoje} previsão(ões) para hoje, ${amanha} para amanhã, ${venc} vencida(s) e ${fut} futura(s) no consolidado.`}},400);
 render();
-document.addEventListener('cmcloudready',()=>render());
+document.addEventListener('cmcloudready',async()=>{try{await loadCentralData();render()}catch(err){$('importStatus').hidden=false;$('importStatus').className='notice bad';$('importStatus').textContent='Erro ao carregar base central: '+err.message}});
