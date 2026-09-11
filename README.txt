@@ -26,3 +26,10 @@ NOVO NA v0.3:
 
 Observação:
 Notificações do sistema operacional com o aplicativo totalmente fechado ainda não fazem parte desta versão.
+
+
+v0.4 — Previsões futuras e Prioridades de cobrança
+- Novo indicador Previsões futuras (datas após amanhã).
+- Novo filtro Previsões futuras.
+- Painel Prioridades de cobrança: promessas vencidas, cobranças de hoje e clientes sem ação há 5+ dias ou sem histórico.
+- Mantém múltiplas carteiras, histórico e atualização independente por agente.

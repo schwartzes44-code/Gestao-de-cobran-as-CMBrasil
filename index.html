@@ -23,6 +23,7 @@
       <button class="stat" data-filter="hoje"><span id="sHoje">0</span><small>Previsões hoje</small></button>
       <button class="stat" data-filter="amanha"><span id="sAmanha">0</span><small>Previsões amanhã</small></button>
       <button class="stat danger" data-filter="vencidas"><span id="sVencidas">0</span><small>Previsões vencidas</small></button>
+      <button class="stat" data-filter="futura"><span id="sFuturas">0</span><small>Previsões futuras</small></button>
       <button class="stat" data-filter="todos"><span id="sClientes">0</span><small>Clientes em atraso</small></button>
       <div class="stat static"><span id="sDocumentos">0</span><small>Documentos em atraso</small></div>
       <div class="stat static money-stat"><span id="sValorK">R$ 0,00</span><small>Valor K em atraso</small></div>
@@ -48,10 +49,26 @@
           <option value="hoje">Previsão hoje</option>
           <option value="amanha">Previsão amanhã</option>
           <option value="vencidas">Previsão vencida</option>
+          <option value="futura">Previsões futuras</option>
           <option value="sem">Sem previsão</option>
         </select>
       </div>
       <div id="clientList" class="client-list"></div>
+    </section>
+
+    <section class="panel priority-panel">
+      <div class="priority-head">
+        <div>
+          <h2>Prioridades de cobrança</h2>
+          <p>Foco automático em promessas vencidas, cobranças de hoje e clientes sem nova ação há 5 dias ou mais.</p>
+        </div>
+        <div class="priority-summary">
+          <span><strong id="pVencidas">0</strong> promessa(s) vencida(s)</span>
+          <span><strong id="pHoje">0</strong> para hoje</span>
+          <span><strong id="pSemAcao">0</strong> sem ação 5+ dias</span>
+        </div>
+      </div>
+      <div id="priorityList" class="priority-list"></div>
     </section>
 
     <section class="panel split">

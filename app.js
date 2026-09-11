@@ -61,6 +61,10 @@ function isoFromBR(s){if(!s)return'';let [d,m,y]=s.split('/');if(y.length===2)y=
 function localDate(s){if(!s)return'—';const [y,m,d]=s.split('-');return `${d}/${m}/${y}`}
 function todayISO(add=0){let d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()+add);return d.toISOString().slice(0,10)}
 function statusOf(c){if(c.paid)return'pago';if(!c.promiseDate)return'sem';if(c.promiseDate===todayISO())return'hoje';if(c.promiseDate===todayISO(1))return'amanha';if(c.promiseDate<todayISO())return'vencidas';return'futura'}
+function lastCollectionAt(c){const h=(c.history||[]).filter(x=>x.type==='cobranca'&&x.at);if(!h.length)return null;return h.reduce((max,x)=>!max||x.at>max?x.at:max,null)}
+function daysSinceISODateTime(iso){if(!iso)return null;const d=new Date(iso);if(Number.isNaN(d.getTime()))return null;const now=new Date();now.setHours(12,0,0,0);d.setHours(12,0,0,0);return Math.max(0,Math.floor((now-d)/86400000))}
+function daysSinceCollection(c){return daysSinceISODateTime(lastCollectionAt(c))}
+function priorityInfo(c){const st=statusOf(c),since=daysSinceCollection(c);if(st==='vencidas')return{rank:0,label:'Promessa vencida',cls:'critical',detail:`Prevista para ${localDate(c.promiseDate)}`};if(st==='hoje')return{rank:1,label:'Cobrar hoje',cls:'today',detail:'Pagamento previsto para hoje'};if(since===null)return{rank:2,label:'Sem histórico de cobrança',cls:'stale',detail:`${oldestDays(c)} dias de atraso`};if(since>=5)return{rank:3,label:`Sem ação há ${since} dias`,cls:'stale',detail:'Revisar contato e registrar nova ação'};return null}
 function oldestDays(c){return Math.max(0,...(c.installments||[]).map(x=>x.daysLate||0))}
 function totalK(c){return (c.installments||[]).reduce((s,x)=>s+(x.valorK||0),0)}
 function normalizePhone(s){return (s||'').replace(/\D/g,'')}
@@ -90,6 +94,8 @@ function render(){
  $('sHoje').textContent=arr.filter(c=>statusOf(c)==='hoje').length;
  $('sAmanha').textContent=arr.filter(c=>statusOf(c)==='amanha').length;
  $('sVencidas').textContent=arr.filter(c=>statusOf(c)==='vencidas').length;
+ $('sFuturas').textContent=arr.filter(c=>statusOf(c)==='futura').length;
+ renderPriorities(arr);
  $('lastImport').textContent=state.lastImport?`Última atualização pelo PDF: ${new Date(state.lastImport).toLocaleString('pt-BR')}`:'Nenhum PDF importado.';
  const s=state.summary||{};
  $('summaryAgent').textContent=state.lastAgent?` • ${state.lastAgent}`:'';
@@ -101,7 +107,7 @@ function render(){
  $('clientList').innerHTML=filtered.length?filtered.map(c=>clientCard(c)).join(''):'<div class="empty">Nenhum cliente encontrado.</div>';
  document.querySelectorAll('.client:not(.archived-client)').forEach(el=>el.onclick=()=>openClient(el.dataset.id));
 }
-function clientCard(c){const st=statusOf(c), lab={hoje:'Previsão hoje',amanha:'Previsão amanhã',vencidas:'Previsão vencida',sem:'Sem previsão',futura:`Prev. ${localDate(c.promiseDate)}`}[st]||st;const cls=st==='vencidas'?'alert':(st==='hoje'||st==='amanha')?'warn':'';return `<div class="client" data-id="${c.id}"><div><h3>${c.name}</h3><p>${c.city||'Cidade não informada'} • ${c.agent||'Agente não identificado'}</p><div class="chips"><span class="chip ${cls}">${lab}</span><span class="chip">${(c.installments||[]).length} parcela(s)</span><span class="chip">${oldestDays(c)} dias</span></div></div><div class="money">${brl(totalK(c))}<small>Valor K em atraso</small></div></div>`}
+function clientCard(c){const st=statusOf(c), lab={hoje:'Previsão hoje',amanha:'Previsão amanhã',vencidas:'Previsão vencida',sem:'Sem previsão',futura:`Prev. ${localDate(c.promiseDate)}`}[st]||st;const cls=st==='vencidas'?'alert':(st==='hoje'||st==='amanha')?'warn':st==='futura'?'future':'';return `<div class="client" data-id="${c.id}"><div><h3>${c.name}</h3><p>${c.city||'Cidade não informada'} • ${c.agent||'Agente não identificado'}</p><div class="chips"><span class="chip ${cls}">${lab}</span><span class="chip">${(c.installments||[]).length} parcela(s)</span><span class="chip">${oldestDays(c)} dias</span></div></div><div class="money">${brl(totalK(c))}<small>Valor K em atraso</small></div></div>`}
 
 function getClient(id){return state.clients[id]||state.archived[id]}
 function openClient(id){const c=getClient(id);if(!c)return;currentId=id;$('dName').textContent=c.name;$('dMeta').textContent=`${c.code||''} • ${c.cpf||''}`;$('detailGrid').innerHTML=`<div><small>Cidade</small>${c.city||'—'}</div><div><small>Agente</small>${c.agent||'—'}</div><div><small>Telefone</small>${c.phone||'—'}</div><div><small>Último pagamento</small>${c.lastPayment||'—'}</div><div><small>Parcelas em atraso</small>${(c.installments||[]).length}</div><div><small>Maior atraso</small>${oldestDays(c)} dias</div><div><small>Valor K</small>${brl(totalK(c))}</div><div><small>Atualizado pelo PDF</small>${c.pdfUpdatedAt?new Date(c.pdfUpdatedAt).toLocaleString('pt-BR'):'—'}</div>`;$('promiseDate').value=c.promiseDate||'';$('note').value='';const ph=normalizePhone(c.whatsapp||c.phone);$('whatsappBtn').href=ph?`https://wa.me/${ph.startsWith('55')?ph:'55'+ph}`:'#';$('phoneBtn').href=ph?`tel:+${ph.startsWith('55')?ph:'55'+ph}`:'#';renderHistory(c);const archived=!!state.archived[id];$('saveCollection').disabled=archived;$('markPaid').disabled=archived;$('promiseDate').disabled=archived;$('note').disabled=archived;$('clientDialog').showModal()}
@@ -179,5 +185,5 @@ $('backupBtn').onclick=()=>{const blob=new Blob([JSON.stringify(state,null,2)],{
 $('restoreInput').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const obj=JSON.parse(await f.text());if(!obj.clients)throw 0;state=obj;migrateState();render();alert('Backup restaurado com sucesso.')}catch{alert('Arquivo de backup inválido.')}e.target.value=''};
 
 // Alerta interno ao abrir o app (consolidado de todas as carteiras ativas).
-setTimeout(()=>{const arr=activeClients();const hoje=arr.filter(c=>statusOf(c)==='hoje').length,amanha=arr.filter(c=>statusOf(c)==='amanha').length,venc=arr.filter(c=>statusOf(c)==='vencidas').length;if(hoje||amanha||venc){$('importStatus').hidden=false;$('importStatus').className='notice';$('importStatus').textContent=`Atenção: ${hoje} previsão(ões) para hoje, ${amanha} para amanhã e ${venc} vencida(s) no consolidado.`}},400);
+setTimeout(()=>{const arr=activeClients();const hoje=arr.filter(c=>statusOf(c)==='hoje').length,amanha=arr.filter(c=>statusOf(c)==='amanha').length,venc=arr.filter(c=>statusOf(c)==='vencidas').length,fut=arr.filter(c=>statusOf(c)==='futura').length;if(hoje||amanha||venc||fut){$('importStatus').hidden=false;$('importStatus').className='notice';$('importStatus').textContent=`Atenção: ${hoje} previsão(ões) para hoje, ${amanha} para amanhã, ${venc} vencida(s) e ${fut} futura(s) no consolidado.`}},400);
 render();
