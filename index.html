@@ -24,6 +24,8 @@
       <button class="stat" data-filter="amanha"><span id="sAmanha">0</span><small>Previsões amanhã</small></button>
       <button class="stat danger" data-filter="vencidas"><span id="sVencidas">0</span><small>Previsões vencidas</small></button>
       <button class="stat" data-filter="todos"><span id="sClientes">0</span><small>Clientes em atraso</small></button>
+      <div class="stat static"><span id="sDocumentos">0</span><small>Documentos em atraso</small></div>
+      <div class="stat static money-stat"><span id="sValorK">R$ 0,00</span><small>Valor K em atraso</small></div>
     </section>
 
     <section class="panel">
@@ -31,6 +33,7 @@
         <div>
           <h1>Carteira em atraso</h1>
           <p id="lastImport">Nenhum PDF importado.</p>
+          <p id="portfolioInfo" class="portfolio-info">Nenhuma carteira importada.</p>
         </div>
         <label class="primary file-btn">Importar PDF
           <input id="pdfInput" type="file" accept="application/pdf" hidden />
@@ -38,9 +41,10 @@
       </div>
       <div id="importStatus" class="notice" hidden></div>
       <div class="toolbar">
-        <input id="search" placeholder="Buscar cliente, cidade ou CPF" />
+        <input id="search" placeholder="Buscar cliente, cidade, CPF ou agente" />
+        <select id="agentFilter"><option value="todos">Todos os agentes</option></select>
         <select id="filter">
-          <option value="todos">Todos</option>
+          <option value="todos">Todos os status</option>
           <option value="hoje">Previsão hoje</option>
           <option value="amanha">Previsão amanhã</option>
           <option value="vencidas">Previsão vencida</option>
@@ -52,7 +56,7 @@
 
     <section class="panel split">
       <div>
-        <h2>Resumo do último PDF</h2>
+        <h2>Resumo do último PDF<span id="summaryAgent"></span></h2>
         <div class="summary-grid">
           <div><small>Documentos</small><strong id="sumDocs">—</strong></div>
           <div><small>Clientes</small><strong id="sumClients">—</strong></div>
@@ -96,7 +100,7 @@
 
   <dialog id="archivedDialog">
     <div class="dialog-card">
-      <div class="dialog-head"><div><h2>Clientes arquivados</h2><p>Saíram do último PDF, mas o histórico foi preservado.</p></div><button class="x" onclick="document.getElementById('archivedDialog').close()">×</button></div>
+      <div class="dialog-head"><div><h2>Clientes arquivados</h2><p>Saíram do último PDF do mesmo agente, mas o histórico foi preservado.</p></div><button class="x" onclick="document.getElementById('archivedDialog').close()">×</button></div>
       <div id="archivedList" class="client-list" style="margin-top:14px"></div>
     </div>
   </dialog>

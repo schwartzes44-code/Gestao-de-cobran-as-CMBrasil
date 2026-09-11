@@ -1,23 +1,28 @@
-GESTÃO DE COBRANÇAS CMBRASIL — Protótipo v0.1
+GESTÃO DE COBRANÇAS CMBRASIL — v0.3 MULTICARTEIRAS
 
-1. Publique todos os arquivos na raiz de um repositório GitHub.
-2. Ative GitHub Pages na branch main / root.
-3. Abra o app com internet ao menos uma vez para o navegador armazenar a biblioteca PDF.js no cache.
-4. Depois disso, o app e a leitura de PDFs podem funcionar offline enquanto o cache do navegador for mantido.
+Publicação:
+1. Envie todos os arquivos desta pasta para a raiz do mesmo repositório GitHub Pages.
+2. Substitua os arquivos da versão anterior.
+3. Aguarde o GitHub Pages publicar e atualize o navegador.
 
-Recursos desta versão:
-- PWA instalável
-- carteira local e offline
+Recursos validados e preservados:
+- PWA instalável e funcionamento offline
 - importação do PDF "Carteira por Agente"
-- leitura de Resumo Geral e conferência de clientes/documentos
-- preservação de histórico e previsões após nova importação
-- alertas internos de previsões hoje/amanhã/vencidas
-- histórico de cobrança
+- conferência pelo Resumo Geral
+- histórico de cobrança e previsão de pagamento
 - WhatsApp e ligação
-- backup/restauração em JSON
+- backup/restauração JSON
+- identificação do agente e data de atualização
+- arquivamento/reativação de clientes
 
-Observação importante:
+NOVO NA v0.3:
+- múltiplas carteiras simultâneas
+- importar XAMA2 não remove XAMA3 e vice-versa
+- atualização/arquivamento ocorre somente dentro do agente do PDF importado
+- filtro por agente: Todos / XAMA2 / XAMA3 / etc.
+- dashboard consolidado ou por agente
+- total de documentos e Valor K em atraso no dashboard
+- migração automática dos dados da v0.2 para o novo modelo
+
+Observação:
 Notificações do sistema operacional com o aplicativo totalmente fechado ainda não fazem parte desta versão.
-
-
-v0.2: agente por cabeçalho persistente; data de atualização por PDF; arquivo de clientes ausentes preservando histórico; reativação automática; cache v0.2.
