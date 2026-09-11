@@ -1,22 +1,17 @@
-GESTÃO DE COBRANÇAS CMBRASIL v1.0 ALPHA 2
+GESTÃO DE COBRANÇAS CMBRASIL — v1.0 Alpha 3
 
-Objetivo desta versão:
-- Base central Supabase como fonte de dados para Gestor e Agentes.
-- Gestor importa PDF e os clientes/parcelas são gravados no Supabase.
-- Agentes visualizam automaticamente somente as carteiras liberadas pelo RLS.
-- Observações e agendamentos já são gravados na tabela central cobrancas.
-- Exclusão de observação central preservada conforme permissões.
-- Importar PDF fica visível somente para Gestor.
-- Dados financeiros do PDF são atualizados sem apagar o histórico de cobranças.
+Objetivo desta Alpha:
+- forçar carregamento de arquivos novos com nomes exclusivos, evitando mistura da v0.6/Alpha 2;
+- gravar PDF do Gestor diretamente no Supabase;
+- validar a quantidade de clientes efetivamente gravada antes de informar sucesso;
+- carregar clientes da base central para Gestor e Agente;
+- ocultar Importar PDF para perfil Agente;
+- limpar mensagens locais ao trocar de usuário.
 
-Fluxo de teste recomendado:
-1. Entrar como Gestor.
-2. Importar o PDF da XAMA3.
-3. Conferir totais e alguns clientes/parcelas.
-4. Sair e entrar como Agente Treinador.
-5. Confirmar que XAMA3 aparece com os mesmos clientes.
-6. Registrar uma observação/agendamento no agente.
-7. Entrar novamente como Gestor e verificar o histórico central.
-
-Observação:
-- A função "Marcar como pago" está temporariamente desabilitada na base central nesta Alpha 2.
+Teste recomendado:
+1. Substitua TODOS os arquivos da raiz do GitHub pelos deste pacote.
+2. Confirme no topo: v1.0 Alpha 3 e “Base central conectada • Alpha 3”.
+3. Entre como Gestor e importe o PDF XAMA3 UMA VEZ.
+4. A mensagem correta deve começar com “Base central confirmada”.
+5. Confira public.clientes no Supabase.
+6. Saia e entre como Agente Treinador. Ele deve receber XAMA3 da base central.
