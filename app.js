@@ -84,6 +84,36 @@ function scopedClients(){
  return activeClients().filter(c=>agent==='todos'||c.agent===agent);
 }
 
+function renderPriorities(arr){
+ const items=arr
+   .map(c=>({c,info:priorityInfo(c)}))
+   .filter(x=>x.info)
+   .sort((a,b)=>a.info.rank-b.info.rank || oldestDays(b.c)-oldestDays(a.c) || a.c.name.localeCompare(b.c.name,'pt-BR'));
+
+ const vencidas=arr.filter(c=>statusOf(c)==='vencidas').length;
+ const hoje=arr.filter(c=>statusOf(c)==='hoje').length;
+ const semAcao=arr.filter(c=>{
+   const since=daysSinceCollection(c);
+   return since===null || since>=5;
+ }).length;
+
+ $('pVencidas').textContent=vencidas;
+ $('pHoje').textContent=hoje;
+ $('pSemAcao').textContent=semAcao;
+
+ $('priorityList').innerHTML=items.length?items.map(({c,info})=>`
+   <button type="button" class="priority-item ${info.cls}" data-priority-id="${c.id}">
+     <span class="priority-badge">${info.label}</span>
+     <span class="priority-name">${c.name}</span>
+     <span class="priority-meta">${c.city||'Cidade não informada'} • ${c.agent||'Agente não identificado'} • ${info.detail}</span>
+     <strong>${brl(totalK(c))}</strong>
+   </button>`).join(''):'<div class="empty compact">Nenhuma prioridade de cobrança neste filtro.</div>';
+
+ document.querySelectorAll('[data-priority-id]').forEach(el=>{
+   el.onclick=()=>openClient(el.dataset.priorityId);
+ });
+}
+
 function render(){
  syncAgentFilter();
  const arr=scopedClients();

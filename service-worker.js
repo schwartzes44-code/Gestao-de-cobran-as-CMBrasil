@@ -1,5 +1,5 @@
-const CACHE='gestao-cobrancas-v0-4-1-fix-futuras';
-const CORE=['./','./index.html','./styles.css?v=0.4.1','./app.js?v=0.4.1','./manifest.webmanifest','./icon.svg'];
+const CACHE='gestao-cobrancas-v0-4-2-fix-prioridades';
+const CORE=['./','./index.html','./styles.css?v=0.4.2','./app.js?v=0.4.2','./manifest.webmanifest','./icon.svg'];
 
 self.addEventListener('install', event => {
   event.waitUntil(
