@@ -18,3 +18,6 @@ Recursos desta versão:
 
 Observação importante:
 Notificações do sistema operacional com o aplicativo totalmente fechado ainda não fazem parte desta versão.
+
+
+v0.2: agente por cabeçalho persistente; data de atualização por PDF; arquivo de clientes ausentes preservando histórico; reativação automática; cache v0.2.

@@ -62,7 +62,9 @@
       </div>
       <div>
         <h2>Dados</h2>
+        <div class="archive-count"><strong id="sArquivados">0</strong> cliente(s) arquivado(s)</div>
         <div class="actions">
+          <button id="archivedBtn">Ver arquivados</button>
           <button id="backupBtn">Exportar backup</button>
           <label class="secondary file-btn">Restaurar backup<input id="restoreInput" type="file" accept="application/json" hidden /></label>
         </div>
@@ -90,6 +92,13 @@
         <div id="history" class="history"></div>
       </div>
     </form>
+  </dialog>
+
+  <dialog id="archivedDialog">
+    <div class="dialog-card">
+      <div class="dialog-head"><div><h2>Clientes arquivados</h2><p>Saíram do último PDF, mas o histórico foi preservado.</p></div><button class="x" onclick="document.getElementById('archivedDialog').close()">×</button></div>
+      <div id="archivedList" class="client-list" style="margin-top:14px"></div>
+    </div>
   </dialog>
 
   <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@2.16.105/build/pdf.min.js"></script>

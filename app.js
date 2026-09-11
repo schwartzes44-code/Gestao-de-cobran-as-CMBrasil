@@ -1,6 +1,7 @@
 const $=id=>document.getElementById(id);
 const DBKEY='cmbrasil_cobrancas_v01';
 let state=JSON.parse(localStorage.getItem(DBKEY)||'{"clients":{},"summary":null,"lastImport":null}');
+state.clients=state.clients||{}; state.archived=state.archived||{}; state.summary=state.summary||null; state.lastImport=state.lastImport||null;
 let currentId=null, deferredPrompt=null;
 
 if('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js');
@@ -18,12 +19,13 @@ function totalK(c){return (c.installments||[]).reduce((s,x)=>s+(x.valorK||0),0)}
 function normalizePhone(s){return (s||'').replace(/\D/g,'')}
 
 function render(){
- const arr=Object.values(state.clients).filter(c=>!c.paid);
+ const arr=Object.values(state.clients).filter(c=>!c.paid&&!c.archived);
  $('sClientes').textContent=arr.length;
+ $('sArquivados').textContent=Object.keys(state.archived||{}).length;
  $('sHoje').textContent=arr.filter(c=>statusOf(c)==='hoje').length;
  $('sAmanha').textContent=arr.filter(c=>statusOf(c)==='amanha').length;
  $('sVencidas').textContent=arr.filter(c=>statusOf(c)==='vencidas').length;
- $('lastImport').textContent=state.lastImport?`Última importação: ${new Date(state.lastImport).toLocaleString('pt-BR')}`:'Nenhum PDF importado.';
+ $('lastImport').textContent=state.lastImport?`Última atualização pelo PDF: ${new Date(state.lastImport).toLocaleString('pt-BR')}`:'Nenhum PDF importado.';
  const s=state.summary||{};$('sumDocs').textContent=s.documents??'—';$('sumClients').textContent=s.clients??'—';$('sumValorK').textContent=s.valorK!=null?brl(s.valorK):'—';$('sumReceber').textContent=s.valorReceber!=null?brl(s.valorReceber):'—';
  const q=$('search').value.trim().toLowerCase(),f=$('filter').value;
  let filtered=arr.filter(c=>!q||[c.name,c.city,c.cpf,c.code].join(' ').toLowerCase().includes(q));
@@ -34,7 +36,7 @@ function render(){
 }
 function clientCard(c){const st=statusOf(c), lab={hoje:'Previsão hoje',amanha:'Previsão amanhã',vencidas:'Previsão vencida',sem:'Sem previsão',futura:`Prev. ${localDate(c.promiseDate)}`}[st]||st;const cls=st==='vencidas'?'alert':(st==='hoje'||st==='amanha')?'warn':'';return `<div class="client" data-id="${c.id}"><div><h3>${c.name}</h3><p>${c.city||'Cidade não informada'} • ${c.agent||'Agente não identificado'}</p><div class="chips"><span class="chip ${cls}">${lab}</span><span class="chip">${(c.installments||[]).length} parcela(s)</span><span class="chip">${oldestDays(c)} dias</span></div></div><div class="money">${brl(totalK(c))}<small>Valor K em atraso</small></div></div>`}
 
-function openClient(id){const c=state.clients[id];if(!c)return;currentId=id;$('dName').textContent=c.name;$('dMeta').textContent=`${c.code||''} • ${c.cpf||''}`;$('detailGrid').innerHTML=`<div><small>Cidade</small>${c.city||'—'}</div><div><small>Telefone</small>${c.phone||'—'}</div><div><small>Último pagamento</small>${c.lastPayment||'—'}</div><div><small>Parcelas em atraso</small>${(c.installments||[]).length}</div><div><small>Maior atraso</small>${oldestDays(c)} dias</div><div><small>Valor K</small>${brl(totalK(c))}</div>`;$('promiseDate').value=c.promiseDate||'';$('note').value='';const ph=normalizePhone(c.whatsapp||c.phone);$('whatsappBtn').href=ph?`https://wa.me/${ph.startsWith('55')?ph:'55'+ph}`:'#';$('phoneBtn').href=ph?`tel:+${ph.startsWith('55')?ph:'55'+ph}`:'#';renderHistory(c);$('clientDialog').showModal()}
+function openClient(id){const c=state.clients[id]||state.archived[id];if(!c)return;currentId=id;$('dName').textContent=c.name;$('dMeta').textContent=`${c.code||''} • ${c.cpf||''}`;$('detailGrid').innerHTML=`<div><small>Cidade</small>${c.city||'—'}</div><div><small>Agente</small>${c.agent||'—'}</div><div><small>Telefone</small>${c.phone||'—'}</div><div><small>Último pagamento</small>${c.lastPayment||'—'}</div><div><small>Parcelas em atraso</small>${(c.installments||[]).length}</div><div><small>Maior atraso</small>${oldestDays(c)} dias</div><div><small>Valor K</small>${brl(totalK(c))}</div><div><small>Atualizado pelo PDF</small>${c.pdfUpdatedAt?new Date(c.pdfUpdatedAt).toLocaleString('pt-BR'):'—'}</div>`;$('promiseDate').value=c.promiseDate||'';$('note').value='';const ph=normalizePhone(c.whatsapp||c.phone);$('whatsappBtn').href=ph?`https://wa.me/${ph.startsWith('55')?ph:'55'+ph}`:'#';$('phoneBtn').href=ph?`tel:+${ph.startsWith('55')?ph:'55'+ph}`:'#';renderHistory(c);$('clientDialog').showModal()}
 function renderHistory(c){$('history').innerHTML=(c.history||[]).slice().reverse().map(h=>`<div class="history-item"><strong>${h.note||h.type}</strong><br><small>${new Date(h.at).toLocaleString('pt-BR')}${h.promiseDate?' • previsão '+localDate(h.promiseDate):''}</small></div>`).join('')||'<div class="empty">Sem histórico.</div>'}
 $('saveCollection').onclick=()=>{const c=state.clients[currentId];if(!c)return;const note=$('note').value.trim(),promiseDate=$('promiseDate').value;c.promiseDate=promiseDate;c.history=c.history||[];c.history.push({type:'cobranca',note:note||'Cobrança registrada',promiseDate,at:new Date().toISOString()});save();openClient(currentId)};
 $('markPaid').onclick=()=>{const c=state.clients[currentId];if(!c)return;c.paid=true;c.history=c.history||[];c.history.push({type:'pago',note:'Marcado como pago',at:new Date().toISOString()});save();$('clientDialog').close()};
@@ -55,7 +57,8 @@ function parsePDFText(text){
    const start=starts[i].index,end=i+1<starts.length?starts[i+1].index:(text.indexOf('Resumo Geral',start)>start?text.indexOf('Resumo Geral',start):text.length);
    const block=text.slice(start,end); const head=block.match(/Cliente:\s*(\d+)\s*-\s*([\s\S]*?)\s+CPF:\s*([\d.\-]+)/i); if(!head)continue;
    const code=head[1],name=head[2].replace(/\s+/g,' ').trim(),cpf=head[3];
-   const agentMatch=text.slice(Math.max(0,start-500),start).match(/Agente de Crédito:\s*([^\n]+)/gi);let agent='';if(agentMatch){agent=agentMatch[agentMatch.length-1].replace(/Agente de Crédito:\s*/i,'').trim()}
+   const before=text.slice(0,start); const agentMatches=[...before.matchAll(/Agente de Crédito:\s*([^\n]+)/gi)]; let agent='';
+   if(agentMatches.length) agent=agentMatches[agentMatches.length-1][1].replace(/\s+/g,' ').trim();
    const city=field(block,'Cidade',['CEP','Fones']);
    const phoneField=field(block,'Fones',['E-mail','Último Pagamento']);
    const phone=(phoneField.match(/\(?\d{2}\)?[-\s]?\d{4,5}[-\s]?\d{4}/)||[])[0]||'';
@@ -78,10 +81,28 @@ async function extractPDF(file){
  const data=await file.arrayBuffer(),pdf=await pdfjsLib.getDocument({data}).promise;let full='';
  for(let p=1;p<=pdf.numPages;p++){const page=await pdf.getPage(p),tc=await page.getTextContent();let line='';for(const item of tc.items){line+=item.str+(item.hasEOL?'\n':' ')}full+=line+'\n'}return full;
 }
-$('pdfInput').onchange=async e=>{const file=e.target.files[0];if(!file)return;const box=$('importStatus');box.hidden=false;box.className='notice';box.textContent='Lendo PDF...';try{const text=await extractPDF(file),parsed=parsePDFText(text);if(!parsed.clients.length)throw new Error('Nenhum cliente foi reconhecido neste PDF.');let preserved=0;for(const c of parsed.clients){const old=state.clients[c.id];if(old){c.history=old.history||[];c.promiseDate=old.promiseDate||'';c.paid=false;preserved++}else{c.history=[];c.promiseDate='';c.paid=false}state.clients[c.id]=c}
- // clientes ausentes no PDF ficam arquivados, sem apagar histórico
- Object.values(state.clients).forEach(c=>{if(!parsed.clients.some(n=>n.id===c.id)&&!c.paid)c.archived=true});parsed.clients.forEach(c=>state.clients[c.id].archived=false);
- state.summary=parsed.summary;state.lastImport=new Date().toISOString();save();const ok=(!parsed.summary.clients||parsed.summary.clients===parsed.clients.length)&&(!parsed.summary.documents||parsed.summary.documents===parsed.clients.reduce((s,c)=>s+c.installments.length,0));box.className='notice '+(ok?'ok':'bad');box.textContent=ok?`Importação conferida: ${parsed.clients.length} clientes e ${parsed.clients.reduce((s,c)=>s+c.installments.length,0)} documentos. Histórico preservado em ${preserved} cliente(s).`:`Importação concluída, mas a conferência do Resumo Geral apresentou divergência. Revise antes de usar.`}catch(err){box.className='notice bad';box.textContent='Erro: '+err.message}finally{e.target.value=''}};
+$('pdfInput').onchange=async e=>{const file=e.target.files[0];if(!file)return;const box=$('importStatus');box.hidden=false;box.className='notice';box.textContent='Lendo PDF...';try{const text=await extractPDF(file),parsed=parsePDFText(text);if(!parsed.clients.length)throw new Error('Nenhum cliente foi reconhecido neste PDF.');
+ const now=new Date().toISOString(), incoming=new Set(parsed.clients.map(c=>c.id)); let preserved=0,archivedNow=0,reactivated=0;
+ // Arquiva quem saiu do PDF atual, preservando todo o histórico.
+ for(const [id,old] of Object.entries(state.clients)){
+   if(!incoming.has(id)){
+     old.archived=true; old.archivedAt=now; old.archiveReason='Ausente no último PDF importado';
+     state.archived[id]=old; delete state.clients[id]; archivedNow++;
+   }
+ }
+ for(const c of parsed.clients){
+   const old=state.clients[c.id]||state.archived[c.id];
+   if(old){c.history=old.history||[];c.promiseDate=old.promiseDate||'';c.paid=false;preserved++;if(state.archived[c.id]){delete state.archived[c.id];reactivated++}}
+   else{c.history=[];c.promiseDate='';c.paid=false}
+   c.archived=false;c.pdfUpdatedAt=now;state.clients[c.id]=c;
+ }
+ state.summary=parsed.summary;state.lastImport=now;save();
+ const docs=parsed.clients.reduce((s,c)=>s+c.installments.length,0);const ok=(!parsed.summary.clients||parsed.summary.clients===parsed.clients.length)&&(!parsed.summary.documents||parsed.summary.documents===docs);
+ box.className='notice '+(ok?'ok':'bad');box.textContent=ok?`Importação conferida: ${parsed.clients.length} clientes e ${docs} documentos. Histórico preservado em ${preserved} cliente(s). ${archivedNow?archivedNow+' cliente(s) arquivado(s). ':''}${reactivated?reactivated+' cliente(s) reativado(s).':''}`:`Importação concluída, mas a conferência do Resumo Geral apresentou divergência. Revise antes de usar.`
+ }catch(err){box.className='notice bad';box.textContent='Erro: '+err.message}finally{e.target.value=''}};
+
+function renderArchived(){const arr=Object.values(state.archived||{}).sort((a,b)=>(b.archivedAt||'').localeCompare(a.archivedAt||''));$('archivedList').innerHTML=arr.length?arr.map(c=>`<div class="client archived-client" data-id="${c.id}"><div><h3>${c.name}</h3><p>${c.city||'Cidade não informada'} • ${c.agent||'Agente não identificado'}</p><div class="chips"><span class="chip">Arquivado ${c.archivedAt?new Date(c.archivedAt).toLocaleDateString('pt-BR'):''}</span><span class="chip">${(c.installments||[]).length} parcela(s) no último PDF</span></div></div><div class="money">${brl(totalK(c))}<small>Último Valor K registrado</small></div></div>`).join(''):'<div class="empty">Nenhum cliente arquivado.</div>';document.querySelectorAll('.archived-client').forEach(el=>el.onclick=()=>openClient(el.dataset.id))}
+$('archivedBtn').onclick=()=>{renderArchived();$('archivedDialog').showModal()};
 
 $('backupBtn').onclick=()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='backup-gestao-cobrancas-'+todayISO()+'.json';a.click();URL.revokeObjectURL(a.href)};
 $('restoreInput').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const obj=JSON.parse(await f.text());if(!obj.clients)throw 0;state=obj;save();alert('Backup restaurado com sucesso.')}catch{alert('Arquivo de backup inválido.')}e.target.value=''};
