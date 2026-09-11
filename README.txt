@@ -1,35 +1,8 @@
-GESTÃO DE COBRANÇAS CMBRASIL — v0.3 MULTICARTEIRAS
+Gestão de Cobranças CMBrasil v0.4.1
 
-Publicação:
-1. Envie todos os arquivos desta pasta para a raiz do mesmo repositório GitHub Pages.
-2. Substitua os arquivos da versão anterior.
-3. Aguarde o GitHub Pages publicar e atualize o navegador.
-
-Recursos validados e preservados:
-- PWA instalável e funcionamento offline
-- importação do PDF "Carteira por Agente"
-- conferência pelo Resumo Geral
-- histórico de cobrança e previsão de pagamento
-- WhatsApp e ligação
-- backup/restauração JSON
-- identificação do agente e data de atualização
-- arquivamento/reativação de clientes
-
-NOVO NA v0.3:
-- múltiplas carteiras simultâneas
-- importar XAMA2 não remove XAMA3 e vice-versa
-- atualização/arquivamento ocorre somente dentro do agente do PDF importado
-- filtro por agente: Todos / XAMA2 / XAMA3 / etc.
-- dashboard consolidado ou por agente
-- total de documentos e Valor K em atraso no dashboard
-- migração automática dos dados da v0.2 para o novo modelo
-
-Observação:
-Notificações do sistema operacional com o aplicativo totalmente fechado ainda não fazem parte desta versão.
-
-
-v0.4 — Previsões futuras e Prioridades de cobrança
-- Novo indicador Previsões futuras (datas após amanhã).
-- Novo filtro Previsões futuras.
-- Painel Prioridades de cobrança: promessas vencidas, cobranças de hoje e clientes sem ação há 5+ dias ou sem histórico.
-- Mantém múltiplas carteiras, histórico e atualização independente por agente.
+Correção de atualização/cache da v0.4.
+- Mantém Previsões futuras no dashboard e filtros.
+- Mantém Prioridades de cobrança.
+- Adiciona cache-busting em CSS/JS.
+- Service Worker em network-first para reduzir risco de versão antiga ficar presa no cache.
+- Preserva multicarteiras, histórico, previsões, PDF, arquivamento por agente e backup.
