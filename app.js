@@ -1,7 +1,8 @@
 const $=id=>document.getElementById(id);
 const DBKEY='cmbrasil_cobrancas_v01';
 let state=JSON.parse(localStorage.getItem(DBKEY)||'{"clients":{},"summary":null,"lastImport":null}');
-let currentId=null, deferredPrompt=null;
+let currentId=null, deferredPrompt=null, showAllPriorities=false;
+const APP_VERSION='0.5.0';
 
 function recordKey(agent,code){return `${(agent||'SEM-AGENTE').trim()}::${code}`}
 function migrateState(){
@@ -46,12 +47,26 @@ function migrateState(){
     if(state.summary && agents.length===1 && !state.summariesByAgent[agents[0]]) state.summariesByAgent[agents[0]]=state.summary;
     if(state.lastImport && agents.length===1 && !state.lastImportsByAgent[agents[0]]) state.lastImportsByAgent[agents[0]]=state.lastImport;
   }
-  state.schemaVersion=3;
+  state.schemaVersion=Math.max(state.schemaVersion||0,5);
   localStorage.setItem(DBKEY,JSON.stringify(state));
 }
 migrateState();
 
-if('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js');
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('./service-worker.js?v=0.5.0',{updateViaCache:'none'}).then(reg=>{
+    reg.update().catch(()=>{});
+    const revealUpdate=()=>{if(reg.waiting)$('updateBtn').hidden=false};
+    revealUpdate();
+    reg.addEventListener('updatefound',()=>{
+      const worker=reg.installing;
+      if(!worker)return;
+      worker.addEventListener('statechange',()=>{if(worker.state==='installed'&&navigator.serviceWorker.controller)$('updateBtn').hidden=false});
+    });
+    $('updateBtn').onclick=()=>{if(reg.waiting)reg.waiting.postMessage({type:'SKIP_WAITING'});else location.reload()};
+  }).catch(()=>{});
+  let reloading=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!reloading){reloading=true;location.reload()}});
+}
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;$('installBtn').hidden=false});
 $('installBtn').onclick=async()=>{if(deferredPrompt){deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;$('installBtn').hidden=true}};
 
@@ -92,26 +107,23 @@ function renderPriorities(arr){
 
  const vencidas=arr.filter(c=>statusOf(c)==='vencidas').length;
  const hoje=arr.filter(c=>statusOf(c)==='hoje').length;
- const semAcao=arr.filter(c=>{
-   const since=daysSinceCollection(c);
-   return since===null || since>=5;
- }).length;
-
+ const semAcao=arr.filter(c=>{const since=daysSinceCollection(c);return since===null || since>=5}).length;
  $('pVencidas').textContent=vencidas;
  $('pHoje').textContent=hoje;
  $('pSemAcao').textContent=semAcao;
 
- $('priorityList').innerHTML=items.length?items.map(({c,info})=>`
+ const visible=showAllPriorities?items:items.slice(0,10);
+ $('priorityList').innerHTML=visible.length?visible.map(({c,info})=>`
    <button type="button" class="priority-item ${info.cls}" data-priority-id="${c.id}">
      <span class="priority-badge">${info.label}</span>
      <span class="priority-name">${c.name}</span>
      <span class="priority-meta">${c.city||'Cidade não informada'} • ${c.agent||'Agente não identificado'} • ${info.detail}</span>
      <strong>${brl(totalK(c))}</strong>
    </button>`).join(''):'<div class="empty compact">Nenhuma prioridade de cobrança neste filtro.</div>';
-
- document.querySelectorAll('[data-priority-id]').forEach(el=>{
-   el.onclick=()=>openClient(el.dataset.priorityId);
- });
+ const toggle=$('priorityToggle');
+ toggle.hidden=items.length<=10;
+ toggle.textContent=showAllPriorities?`Mostrar só 10`:`Ver todas (${items.length})`;
+ document.querySelectorAll('[data-priority-id]').forEach(el=>{el.onclick=()=>openClient(el.dataset.priorityId)});
 }
 
 function render(){
@@ -140,12 +152,38 @@ function render(){
 function clientCard(c){const st=statusOf(c), lab={hoje:'Previsão hoje',amanha:'Previsão amanhã',vencidas:'Previsão vencida',sem:'Sem previsão',futura:`Prev. ${localDate(c.promiseDate)}`}[st]||st;const cls=st==='vencidas'?'alert':(st==='hoje'||st==='amanha')?'warn':st==='futura'?'future':'';return `<div class="client" data-id="${c.id}"><div><h3>${c.name}</h3><p>${c.city||'Cidade não informada'} • ${c.agent||'Agente não identificado'}</p><div class="chips"><span class="chip ${cls}">${lab}</span><span class="chip">${(c.installments||[]).length} parcela(s)</span><span class="chip">${oldestDays(c)} dias</span></div></div><div class="money">${brl(totalK(c))}<small>Valor K em atraso</small></div></div>`}
 
 function getClient(id){return state.clients[id]||state.archived[id]}
-function openClient(id){const c=getClient(id);if(!c)return;currentId=id;$('dName').textContent=c.name;$('dMeta').textContent=`${c.code||''} • ${c.cpf||''}`;$('detailGrid').innerHTML=`<div><small>Cidade</small>${c.city||'—'}</div><div><small>Agente</small>${c.agent||'—'}</div><div><small>Telefone</small>${c.phone||'—'}</div><div><small>Último pagamento</small>${c.lastPayment||'—'}</div><div><small>Parcelas em atraso</small>${(c.installments||[]).length}</div><div><small>Maior atraso</small>${oldestDays(c)} dias</div><div><small>Valor K</small>${brl(totalK(c))}</div><div><small>Atualizado pelo PDF</small>${c.pdfUpdatedAt?new Date(c.pdfUpdatedAt).toLocaleString('pt-BR'):'—'}</div>`;$('promiseDate').value=c.promiseDate||'';$('note').value='';const ph=normalizePhone(c.whatsapp||c.phone);$('whatsappBtn').href=ph?`https://wa.me/${ph.startsWith('55')?ph:'55'+ph}`:'#';$('phoneBtn').href=ph?`tel:+${ph.startsWith('55')?ph:'55'+ph}`:'#';renderHistory(c);const archived=!!state.archived[id];$('saveCollection').disabled=archived;$('markPaid').disabled=archived;$('promiseDate').disabled=archived;$('note').disabled=archived;$('clientDialog').showModal()}
-function renderHistory(c){$('history').innerHTML=(c.history||[]).slice().reverse().map(h=>`<div class="history-item"><strong>${h.note||h.type}</strong><br><small>${new Date(h.at).toLocaleString('pt-BR')}${h.promiseDate?' • previsão '+localDate(h.promiseDate):''}</small></div>`).join('')||'<div class="empty">Sem histórico.</div>'}
-$('saveCollection').onclick=()=>{const c=state.clients[currentId];if(!c)return;const note=$('note').value.trim(),promiseDate=$('promiseDate').value;c.promiseDate=promiseDate;c.history=c.history||[];c.history.push({type:'cobranca',note:note||'Cobrança registrada',promiseDate,at:new Date().toISOString()});save();openClient(currentId)};
+function openClient(id){
+ const c=getClient(id);if(!c)return;currentId=id;
+ $('dName').textContent=c.name;$('dMeta').textContent=`${c.code||''} • ${c.cpf||''}`;
+ $('detailGrid').innerHTML=`<div><small>Cidade</small>${c.city||'—'}</div><div><small>Agente</small>${c.agent||'—'}</div><div><small>Telefone</small>${c.phone||'—'}</div><div><small>Último pagamento</small>${c.lastPayment||'—'}</div><div><small>Parcelas em atraso</small>${(c.installments||[]).length}</div><div><small>Maior atraso</small>${oldestDays(c)} dias</div><div><small>Valor K</small>${brl(totalK(c))}</div><div><small>Atualizado pelo PDF</small>${c.pdfUpdatedAt?new Date(c.pdfUpdatedAt).toLocaleString('pt-BR'):'—'}</div>`;
+ $('promiseDate').value=c.promiseDate||'';$('note').value='';
+ const ph=normalizePhone(c.whatsapp||c.phone);$('whatsappBtn').href=ph?`https://wa.me/${ph.startsWith('55')?ph:'55'+ph}`:'#';$('phoneBtn').href=ph?`tel:+${ph.startsWith('55')?ph:'55'+ph}`:'#';
+ const archived=!!state.archived[id];
+ $('saveCollection').disabled=archived;$('markPaid').disabled=archived;$('promiseDate').disabled=archived;$('note').disabled=archived;
+ $('clearPromise').disabled=archived||!c.promiseDate;$('clearPromise').hidden=!c.promiseDate;
+ renderHistory(c,archived);$('clientDialog').showModal();
+}
+function renderHistory(c,archived=false){
+ const entries=(c.history||[]).map((h,i)=>({h,i})).reverse();
+ $('history').innerHTML=entries.length?entries.map(({h,i})=>`<div class="history-item"><div class="history-main"><strong>${h.note||h.type}</strong><br><small>${new Date(h.at).toLocaleString('pt-BR')}${h.promiseDate?' • previsão '+localDate(h.promiseDate):''}</small></div>${archived?'':`<button type="button" class="history-delete" data-history-index="${i}" title="Excluir este registro">Excluir</button>`}</div>`).join(''):'<div class="empty">Sem histórico.</div>';
+ document.querySelectorAll('[data-history-index]').forEach(btn=>btn.onclick=()=>deleteHistoryItem(Number(btn.dataset.historyIndex)));
+}
+function deleteHistoryItem(index){
+ const c=state.clients[currentId];if(!c||!c.history||!c.history[index])return;
+ if(!confirm('Excluir esta observação do histórico? Esta ação não pode ser desfeita.'))return;
+ c.history.splice(index,1);save();openClient(currentId);
+}
+$('clearPromise').onclick=()=>{
+ const c=state.clients[currentId];if(!c||!c.promiseDate)return;
+ if(!confirm(`Remover o agendamento de ${localDate(c.promiseDate)} deste cliente?`))return;
+ const date=c.promiseDate;c.promiseDate='';
+ (c.history||[]).forEach(h=>{if(h.promiseDate===date)h.promiseDate=''});
+ save();openClient(currentId);
+};
+$('saveCollection').onclick=()=>{const c=state.clients[currentId];if(!c)return;const note=$('note').value.trim(),promiseDate=$('promiseDate').value;if(!note&&!promiseDate){alert('Informe uma observação ou uma previsão de pagamento.');return}c.promiseDate=promiseDate;c.history=c.history||[];c.history.push({type:'cobranca',note:note||'Agendamento registrado',promiseDate,at:new Date().toISOString()});save();openClient(currentId)};
 $('markPaid').onclick=()=>{const c=state.clients[currentId];if(!c)return;c.paid=true;c.history=c.history||[];c.history.push({type:'pago',note:'Marcado como pago',at:new Date().toISOString()});save();$('clientDialog').close()};
 
-$('search').oninput=render;$('filter').onchange=render;$('agentFilter').onchange=render;document.querySelectorAll('.stat[data-filter]').forEach(b=>b.onclick=()=>{$('filter').value=b.dataset.filter;render()});
+$('search').oninput=render;$('filter').onchange=()=>{showAllPriorities=false;render()};$('agentFilter').onchange=()=>{showAllPriorities=false;render()};$('priorityToggle').onclick=()=>{showAllPriorities=!showAllPriorities;render()};document.querySelectorAll('.stat[data-filter]').forEach(b=>b.onclick=()=>{$('filter').value=b.dataset.filter;render()});
 
 function moneyBR(s){if(!s)return 0;return Number(s.replace(/\./g,'').replace(',','.'))||0}
 function field(block,label,nextLabels){const next=nextLabels.map(x=>x.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|');const re=new RegExp(label+'\\s*:?\\s*([\\s\\S]*?)(?=\\s+(?:'+next+')\\s*:?|$)','i');const m=block.match(re);return m?m[1].replace(/\s+/g,' ').trim():''}

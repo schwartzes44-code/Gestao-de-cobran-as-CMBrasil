@@ -1,13 +1,13 @@
-Gestão de Cobranças CMBrasil — v0.4.2
+GESTÃO DE COBRANÇAS CMBRASIL — v0.5
 
-Correção:
-- Implementada a função renderPriorities, que estava ausente na v0.4.1.
-- Mantidas Previsões Futuras e Prioridades de Cobrança.
-- Cache do PWA atualizado para v0.4.2.
-- Nenhuma alteração na estrutura dos dados locais, importação PDF ou multicarteiras.
+Novidades:
+- Dashboard reorganizado: previsões em destaque e indicadores gerenciais em segunda linha.
+- Previsões futuras mantidas.
+- Prioridades de cobrança limitadas às 10 principais, com botão Ver todas.
+- Itens de prioridades continuam clicáveis para abrir a ficha do cliente.
+- Exclusão individual de observações do histórico (com confirmação).
+- Botão Remover agendamento para limpar a previsão atual do cliente.
+- Atualização do PWA reforçada, com detecção de nova versão e botão Atualizar app quando disponível.
+- Dados locais, históricos e previsões existentes são preservados na migração.
 
-Teste recomendado:
-1. Abrir o app após atualizar os arquivos.
-2. Confirmar que a carteira já salva aparece normalmente.
-3. Confirmar que a seção Prioridades de cobrança é preenchida.
-4. Cadastrar uma previsão futura e verificar o card Previsões futuras.
+IMPORTANTE: use Exportar backup antes de demonstrações ou alterações grandes no navegador.

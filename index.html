@@ -7,7 +7,7 @@
   <title>Gestão de Cobranças</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=0.4.2" />
+  <link rel="stylesheet" href="styles.css?v=0.5.0" />
 </head>
 <body>
   <header class="topbar">
@@ -15,18 +15,22 @@
       <div class="brand">GESTÃO DE COBRANÇAS</div>
       <div class="subbrand">CMBrasil • acompanhamento de atrasos</div>
     </div>
-    <button class="ghost" id="installBtn" hidden>Instalar</button>
+    <div class="top-actions"><span class="version-badge">v0.5</span><button class="ghost" id="updateBtn" hidden>Atualizar app</button><button class="ghost" id="installBtn" hidden>Instalar</button></div>
   </header>
 
   <main class="wrap">
-    <section class="stats" id="stats">
-      <button class="stat" data-filter="hoje"><span id="sHoje">0</span><small>Previsões hoje</small></button>
-      <button class="stat" data-filter="amanha"><span id="sAmanha">0</span><small>Previsões amanhã</small></button>
-      <button class="stat danger" data-filter="vencidas"><span id="sVencidas">0</span><small>Previsões vencidas</small></button>
-      <button class="stat" data-filter="futura"><span id="sFuturas">0</span><small>Previsões futuras</small></button>
-      <button class="stat" data-filter="todos"><span id="sClientes">0</span><small>Clientes em atraso</small></button>
-      <div class="stat static"><span id="sDocumentos">0</span><small>Documentos em atraso</small></div>
-      <div class="stat static money-stat"><span id="sValorK">R$ 0,00</span><small>Valor K em atraso</small></div>
+    <section class="dashboard-stats" id="stats">
+      <div class="stats stats-actions">
+        <button class="stat" data-filter="hoje"><span id="sHoje">0</span><small>Previsões hoje</small></button>
+        <button class="stat" data-filter="amanha"><span id="sAmanha">0</span><small>Previsões amanhã</small></button>
+        <button class="stat danger" data-filter="vencidas"><span id="sVencidas">0</span><small>Previsões vencidas</small></button>
+        <button class="stat" data-filter="futura"><span id="sFuturas">0</span><small>Previsões futuras</small></button>
+      </div>
+      <div class="stats stats-metrics">
+        <button class="stat" data-filter="todos"><span id="sClientes">0</span><small>Clientes em atraso</small></button>
+        <div class="stat static"><span id="sDocumentos">0</span><small>Documentos em atraso</small></div>
+        <div class="stat static money-stat"><span id="sValorK">R$ 0,00</span><small>Valor K em atraso</small></div>
+      </div>
     </section>
 
     <section class="panel">
@@ -69,6 +73,7 @@
         </div>
       </div>
       <div id="priorityList" class="priority-list"></div>
+      <div class="priority-footer"><button type="button" id="priorityToggle" class="secondary" hidden>Ver todas</button></div>
     </section>
 
     <section class="panel split">
@@ -102,7 +107,7 @@
         <a id="phoneBtn" class="secondary">Ligar</a>
       </div>
       <hr />
-      <label>Previsão de pagamento<input type="date" id="promiseDate" /></label>
+      <div class="promise-row"><label>Previsão de pagamento<input type="date" id="promiseDate" /></label><button type="button" class="danger-button" id="clearPromise" hidden>Remover agendamento</button></div>
       <label>Observação da cobrança<textarea id="note" rows="4" placeholder="Ex.: cliente informou que pagará na sexta-feira..."></textarea></label>
       <div class="dialog-actions">
         <button type="button" class="secondary" id="markPaid">Marcar como pago</button>
@@ -123,6 +128,6 @@
   </dialog>
 
   <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@2.16.105/build/pdf.min.js"></script>
-  <script src="app.js?v=0.4.2"></script>
+  <script src="app.js?v=0.5.0"></script>
 </body>
 </html>
