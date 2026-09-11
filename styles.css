@@ -60,3 +60,10 @@
 .installments-table td strong{color:var(--gold)}
 .installments-empty{text-align:center!important;color:var(--muted)!important;padding:18px!important}
 @media(max-width:720px){.installments-section{padding:10px}.installments-table th,.installments-table td{padding:9px 10px}}
+
+/* v1.0 alpha — autenticação Supabase e perfis */
+.auth-gate{min-height:100vh;display:grid;place-items:center;padding:22px;background:radial-gradient(circle at top,#242019 0,#0e0e0f 42%)}
+.auth-card{width:min(430px,100%);background:#171719;border:1px solid var(--line);border-radius:20px;padding:24px;box-shadow:0 24px 70px #0008}
+.auth-brand{font-weight:950;letter-spacing:.08em;color:var(--gold);font-size:18px}.auth-subbrand{color:var(--muted);font-size:12px;margin-top:3px}.auth-card h1{margin:24px 0 4px}.auth-card p{margin:0 0 16px;color:var(--muted)}.auth-card label{display:block;margin:12px 0;color:#d4d4d8}.auth-card label input{margin-top:6px}.auth-card button{width:100%;margin-top:8px}.auth-card>small{display:block;margin-top:16px;color:var(--muted);text-align:center}.auth-message{margin-top:12px;padding:10px 12px;border-radius:10px;background:#202025;color:#ddd}.auth-message.error{border:1px solid #8a3d3d;color:#ffc8c8}
+.cloud-status{margin-bottom:12px;padding:10px 12px;border:1px solid #2d6f4b;background:#13251b;border-radius:12px;color:#b6f3cf;font-size:13px}.user-identity{font-size:12px;color:#ddd;max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:720px){.top-actions{flex-wrap:wrap;justify-content:flex-end}.user-identity{max-width:150px}.auth-card{padding:20px}}

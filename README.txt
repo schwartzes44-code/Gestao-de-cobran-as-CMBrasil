@@ -1,10 +1,12 @@
-GESTÃO DE COBRANÇAS CMBRASIL — v0.6
+GESTÃO DE COBRANÇAS CMBRASIL v1.0 ALPHA 1
 
-Novidades:
-- Ficha do cliente agora exibe cada parcela em atraso individualmente.
-- Nova tabela com Vencimento, $ Receber e $ Saldo.
-- $ Receber e $ Saldo são lidos diretamente do PDF importado; o aplicativo não recalcula esses valores.
-- Data de emissão do relatório é capturada do PDF e exibida junto ao detalhamento das parcelas.
-- Todos os recursos da v0.5 foram preservados: dashboard, previsões, prioridades, histórico, exclusão de observações, remoção de agendamento, backup e múltiplas carteiras.
+Objetivo desta versão:
+- Conectar o PWA ao Supabase.
+- Exibir tela de login.
+- Reconhecer perfil Gestor/Agente pela tabela profiles.
+- Carregar carteiras permitidas respeitando RLS.
+- Gestor mantém acesso à base local v0.6 durante a transição.
+- Agente não enxerga a base local; nesta alpha ele verá sua identidade/carteira, mas os clientes serão sincronizados na próxima etapa.
 
-IMPORTANTE: para clientes já gravados antes da v0.6, reimporte o PDF mais recente da carteira para preencher a data de emissão do relatório e garantir os valores atualizados das parcelas.
+IMPORTANTE:
+Esta é uma versão de teste da arquitetura multiusuário. Preserve a v0.6 publicada/estável até concluir os testes da v1.0.

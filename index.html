@@ -7,18 +7,36 @@
   <title>Gestão de Cobranças</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=0.6.0" />
+  <link rel="stylesheet" href="styles.css?v=1.0.0a1" />
 </head>
 <body>
+  <section id="authGate" class="auth-gate">
+    <div class="auth-card">
+      <div class="auth-brand">GESTÃO DE COBRANÇAS</div>
+      <div class="auth-subbrand">CMBrasil • base integrada</div>
+      <h1>Entrar</h1>
+      <p>Use o acesso fornecido pelo gestor.</p>
+      <form id="loginForm">
+        <label>E-mail<input id="loginEmail" type="email" autocomplete="username" required /></label>
+        <label>Senha<input id="loginPassword" type="password" autocomplete="current-password" required /></label>
+        <button id="loginBtn" class="primary" type="submit">Entrar</button>
+      </form>
+      <div id="authMessage" class="auth-message" hidden></div>
+      <small>v1.0 • teste de autenticação e perfis</small>
+    </div>
+  </section>
+
+  <div id="appShell" hidden>
   <header class="topbar">
     <div>
       <div class="brand">GESTÃO DE COBRANÇAS</div>
       <div class="subbrand">CMBrasil • acompanhamento de atrasos</div>
     </div>
-    <div class="top-actions"><span class="version-badge">v0.6</span><button class="ghost" id="updateBtn" hidden>Atualizar app</button><button class="ghost" id="installBtn" hidden>Instalar</button></div>
+    <div class="top-actions"><span id="userIdentity" class="user-identity"></span><span class="version-badge">v1.0 alpha</span><button class="ghost" id="logoutBtn">Sair</button><button class="ghost" id="updateBtn" hidden>Atualizar app</button><button class="ghost" id="installBtn" hidden>Instalar</button></div>
   </header>
 
   <main class="wrap">
+    <div id="cloudStatus" class="cloud-status">Base central conectando...</div>
     <section class="dashboard-stats" id="stats">
       <div class="stats stats-actions">
         <button class="stat" data-filter="hoje"><span id="sHoje">0</span><small>Previsões hoje</small></button>
@@ -40,7 +58,7 @@
           <p id="lastImport">Nenhum PDF importado.</p>
           <p id="portfolioInfo" class="portfolio-info">Nenhuma carteira importada.</p>
         </div>
-        <label class="primary file-btn">Importar PDF
+        <label class="primary file-btn" id="managerImportLabel">Importar PDF
           <input id="pdfInput" type="file" accept="application/pdf" hidden />
         </label>
       </div>
@@ -76,7 +94,7 @@
       <div class="priority-footer"><button type="button" id="priorityToggle" class="secondary" hidden>Ver todas</button></div>
     </section>
 
-    <section class="panel split">
+    <section class="panel split" id="localDataPanel">
       <div>
         <h2>Resumo do último PDF<span id="summaryAgent"></span></h2>
         <div class="summary-grid">
@@ -141,7 +159,10 @@
     </div>
   </dialog>
 
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="cloud.js?v=1.0.0a1"></script>
   <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@2.16.105/build/pdf.min.js"></script>
-  <script src="app.js?v=0.6.0"></script>
+  <script src="app.js?v=1.0.0a1"></script>
 </body>
 </html>

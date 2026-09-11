@@ -2,7 +2,7 @@ const $=id=>document.getElementById(id);
 const DBKEY='cmbrasil_cobrancas_v01';
 let state=JSON.parse(localStorage.getItem(DBKEY)||'{"clients":{},"summary":null,"lastImport":null}');
 let currentId=null, deferredPrompt=null, showAllPriorities=false;
-const APP_VERSION='0.6.0';
+const APP_VERSION='1.0.0-alpha.1';
 
 function recordKey(agent,code){return `${(agent||'SEM-AGENTE').trim()}::${code}`}
 function migrateState(){
@@ -53,7 +53,7 @@ function migrateState(){
 migrateState();
 
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('./service-worker.js?v=0.6.0',{updateViaCache:'none'}).then(reg=>{
+  navigator.serviceWorker.register('./service-worker.js?v=1.0.0a1',{updateViaCache:'none'}).then(reg=>{
     reg.update().catch(()=>{});
     const revealUpdate=()=>{if(reg.waiting)$('updateBtn').hidden=false};
     revealUpdate();
@@ -83,7 +83,11 @@ function priorityInfo(c){const st=statusOf(c),since=daysSinceCollection(c);if(st
 function oldestDays(c){return Math.max(0,...(c.installments||[]).map(x=>x.daysLate||0))}
 function totalK(c){return (c.installments||[]).reduce((s,x)=>s+(x.valorK||0),0)}
 function normalizePhone(s){return (s||'').replace(/\D/g,'')}
-function activeClients(){return Object.values(state.clients).filter(c=>!c.paid&&!c.archived)}
+function activeClients(){
+ const cloud=window.CMCloud;
+ if(cloud?.ready && cloud.profile?.perfil!=='gestor') return []; // alpha: agentes só receberão clientes quando a sincronização central entrar na próxima etapa
+ return Object.values(state.clients).filter(c=>!c.paid&&!c.archived)
+}
 function agentsAvailable(){return [...new Set(activeClients().map(c=>c.agent).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'))}
 
 function syncAgentFilter(){
@@ -268,3 +272,4 @@ $('restoreInput').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{
 // Alerta interno ao abrir o app (consolidado de todas as carteiras ativas).
 setTimeout(()=>{const arr=activeClients();const hoje=arr.filter(c=>statusOf(c)==='hoje').length,amanha=arr.filter(c=>statusOf(c)==='amanha').length,venc=arr.filter(c=>statusOf(c)==='vencidas').length,fut=arr.filter(c=>statusOf(c)==='futura').length;if(hoje||amanha||venc||fut){$('importStatus').hidden=false;$('importStatus').className='notice';$('importStatus').textContent=`Atenção: ${hoje} previsão(ões) para hoje, ${amanha} para amanhã, ${venc} vencida(s) e ${fut} futura(s) no consolidado.`}},400);
 render();
+document.addEventListener('cmcloudready',()=>render());
