@@ -1,5 +1,5 @@
-const CACHE='gestao-cobrancas-v1-0-alpha3-central-write';
-const CORE=['./','./index.html','./styles-alpha3.css?v=1.0.0a3','./cloud-alpha3.js?v=1.0.0a3','./app-alpha3.js?v=1.0.0a3','./manifest.webmanifest','./icon.svg'];
+const CACHE='gestao-cobrancas-v1-0-alpha4-responsaveis';
+const CORE=['./','./index.html','./styles-alpha4.css?v=1.0.0a4','./cloud-alpha4.js?v=1.0.0a4','./app-alpha4.js?v=1.0.0a4','./manifest.webmanifest','./icon.svg'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(CORE)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim()))});
 self.addEventListener('message',event=>{if(event.data&&event.data.type==='SKIP_WAITING')self.skipWaiting()});
