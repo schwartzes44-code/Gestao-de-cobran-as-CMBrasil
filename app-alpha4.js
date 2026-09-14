@@ -83,6 +83,8 @@ function daysSinceISODateTime(iso){if(!iso)return null;const d=new Date(iso);if(
 function daysSinceCollection(c){return daysSinceISODateTime(lastCollectionAt(c))}
 function priorityInfo(c){const st=statusOf(c),since=daysSinceCollection(c);if(st==='vencidas')return{rank:0,label:'Promessa vencida',cls:'critical',detail:`Prevista para ${localDate(c.promiseDate)}`};if(st==='hoje')return{rank:1,label:'Cobrar hoje',cls:'today',detail:'Pagamento previsto para hoje'};if(since===null)return{rank:2,label:'Sem histórico de cobrança',cls:'stale',detail:`${oldestDays(c)} dias de atraso`};if(since>=5)return{rank:3,label:`Sem ação há ${since} dias`,cls:'stale',detail:'Revisar contato e registrar nova ação'};return null}
 function oldestDays(c){return Math.max(0,...(c.installments||[]).map(x=>x.daysLate||0))}
+function agingBand(c){const d=oldestDays(c);if(d<=29)return'A';if(d<=59)return'B';if(d<=90)return'C';if(d<=120)return'D';if(d<=180)return'E';return'G'}
+function agingLabel(c){const f=agingBand(c),ranges={A:'0–29 dias',B:'30–59 dias',C:'60–90 dias',D:'91–120 dias',E:'121–180 dias',G:'acima de 180 dias'};return `Faixa ${f} • ${ranges[f]}`}
 function totalK(c){return c.valorKTotal!=null?Number(c.valorKTotal||0):(c.installments||[]).reduce((s,x)=>s+(x.valorK||0),0)}
 function normalizePhone(s){return (s||'').replace(/\D/g,'')}
 function activeClients(){
@@ -143,19 +145,23 @@ function render(){
  $('sAmanha').textContent=arr.filter(c=>statusOf(c)==='amanha').length;
  $('sVencidas').textContent=arr.filter(c=>statusOf(c)==='vencidas').length;
  $('sFuturas').textContent=arr.filter(c=>statusOf(c)==='futura').length;
+ ['A','B','C','D','E','G'].forEach(f=>{const el=$('faixa'+f);if(el)el.textContent=arr.filter(c=>agingBand(c)===f).length});
+ document.querySelectorAll('[data-aging]').forEach(btn=>btn.classList.toggle('active',$('agingFilter')?.value===btn.dataset.aging));
+ if($('clearAgingFilter'))$('clearAgingFilter').hidden=!$('agingFilter')||$('agingFilter').value==='todos';
  renderPriorities(arr);
  $('lastImport').textContent=cloudLastImport?`Última atualização pelo PDF: ${new Date(cloudLastImport).toLocaleString('pt-BR')}`:(state.lastImport?`Última atualização pelo PDF: ${new Date(state.lastImport).toLocaleString('pt-BR')}`:'Nenhum PDF importado.');
  const s=cloudSummary||state.summary||{};
  $('summaryAgent').textContent=window.CMCloud?.ready?'':(state.lastAgent?` • ${state.lastAgent}`:'');
  $('sumDocs').textContent=s.documents??'—';$('sumClients').textContent=s.clients??'—';$('sumValorK').textContent=s.valorK!=null?brl(s.valorK):'—';$('sumReceber').textContent=s.valorReceber!=null?brl(s.valorReceber):'—';
- const q=$('search').value.trim().toLowerCase(),f=$('filter').value;
+ const q=$('search').value.trim().toLowerCase(),f=$('filter').value,aging=$('agingFilter')?.value||'todos';
  let filtered=arr.filter(c=>!q||[c.name,c.city,c.cpf,c.code,c.agent].join(' ').toLowerCase().includes(q));
  if(f!=='todos')filtered=filtered.filter(c=>statusOf(c)===f);
+ if(aging!=='todos')filtered=filtered.filter(c=>agingBand(c)===aging);
  filtered.sort((a,b)=>{const rank={vencidas:0,hoje:1,amanha:2,futura:3,sem:4};return (rank[statusOf(a)]-rank[statusOf(b)])||oldestDays(b)-oldestDays(a)});
  $('clientList').innerHTML=filtered.length?filtered.map(c=>clientCard(c)).join(''):'<div class="empty">Nenhum cliente encontrado.</div>';
  document.querySelectorAll('.client:not(.archived-client)').forEach(el=>el.onclick=()=>openClient(el.dataset.id));
 }
-function clientCard(c){const st=statusOf(c), lab={hoje:'Previsão hoje',amanha:'Previsão amanhã',vencidas:'Previsão vencida',sem:'Sem previsão',futura:`Prev. ${localDate(c.promiseDate)}`}[st]||st;const cls=st==='vencidas'?'alert':(st==='hoje'||st==='amanha')?'warn':st==='futura'?'future':'';return `<div class="client" data-id="${c.id}"><div><h3>${c.name}</h3><p>${c.city||'Cidade não informada'} • ${c.agent||'Agente não identificado'}</p><div class="chips"><span class="chip ${cls}">${lab}</span><span class="chip">${(c.installments||[]).length} parcela(s)</span><span class="chip">${oldestDays(c)} dias</span></div></div><div class="money">${brl(totalK(c))}<small>Valor K em atraso</small></div></div>`}
+function clientCard(c){const st=statusOf(c), lab={hoje:'Previsão hoje',amanha:'Previsão amanhã',vencidas:'Previsão vencida',sem:'Sem previsão',futura:`Prev. ${localDate(c.promiseDate)}`}[st]||st;const cls=st==='vencidas'?'alert':(st==='hoje'||st==='amanha')?'warn':st==='futura'?'future':'';return `<div class="client" data-id="${c.id}"><div><h3>${c.name}</h3><p>${c.city||'Cidade não informada'} • ${c.agent||'Agente não identificado'}</p><div class="chips"><span class="chip ${cls}">${lab}</span><span class="chip">${(c.installments||[]).length} parcela(s)</span><span class="chip">${oldestDays(c)} dias</span><span class="chip aging-chip faixa-${agingBand(c).toLowerCase()}">Faixa ${agingBand(c)}</span></div></div><div class="money">${brl(totalK(c))}<small>Valor K em atraso</small></div></div>`}
 
 function getClient(id){return cloudClients[id]||state.clients[id]||state.archived[id]}
 function reportDateLabel(c){
@@ -187,7 +193,7 @@ function renderResponsibles(c){
 function openClient(id){
  const c=getClient(id);if(!c)return;currentId=id;
  $('dName').textContent=c.name;$('dMeta').textContent=`${c.code||''} • ${c.cpf||''}`;
- $('detailGrid').innerHTML=`<div><small>Cidade</small>${c.city||'—'}</div><div><small>Agente</small>${c.agent||'—'}</div><div><small>Telefone</small>${c.phone||'—'}</div><div><small>Último pagamento</small>${c.lastPayment||'—'}</div><div><small>Parcelas em atraso</small>${(c.installments||[]).length}</div><div><small>Maior atraso</small>${oldestDays(c)} dias</div><div><small>Valor K</small>${brl(totalK(c))}</div><div><small>Atualizado pelo PDF</small>${c.pdfUpdatedAt?new Date(c.pdfUpdatedAt).toLocaleString('pt-BR'):'—'}</div>`;
+ $('detailGrid').innerHTML=`<div><small>Cidade</small>${c.city||'—'}</div><div><small>Agente</small>${c.agent||'—'}</div><div><small>Telefone</small>${c.phone||'—'}</div><div><small>Último pagamento</small>${c.lastPayment||'—'}</div><div><small>Parcelas em atraso</small>${(c.installments||[]).length}</div><div><small>Maior atraso</small>${oldestDays(c)} dias</div><div><small>Faixa de atraso</small>${agingLabel(c)}</div><div><small>Valor K</small>${brl(totalK(c))}</div><div><small>Atualizado pelo PDF</small>${c.pdfUpdatedAt?new Date(c.pdfUpdatedAt).toLocaleString('pt-BR'):'—'}</div>`;
  renderResponsibles(c);
  renderInstallments(c);
  $('promiseDate').value=c.promiseDate||'';$('note').value='';
@@ -239,7 +245,7 @@ $('saveCollection').onclick=async()=>{
 };
 $('markPaid').onclick=()=>{if(window.CMCloud?.ready){alert('A função “Marcar como pago” será integrada à base central na próxima etapa.');return}const c=state.clients[currentId];if(!c)return;c.paid=true;c.history=c.history||[];c.history.push({type:'pago',note:'Marcado como pago',at:new Date().toISOString()});save();$('clientDialog').close()};
 
-$('search').oninput=render;$('filter').onchange=()=>{showAllPriorities=false;render()};$('agentFilter').onchange=()=>{showAllPriorities=false;render()};$('priorityToggle').onclick=()=>{showAllPriorities=!showAllPriorities;render()};document.querySelectorAll('.stat[data-filter]').forEach(b=>b.onclick=()=>{$('filter').value=b.dataset.filter;render()});
+$('search').oninput=render;$('filter').onchange=()=>{showAllPriorities=false;render()};$('agentFilter').onchange=()=>{showAllPriorities=false;render()};$('agingFilter').onchange=()=>{showAllPriorities=false;render()};$('clearAgingFilter').onclick=()=>{$('agingFilter').value='todos';render()};document.querySelectorAll('[data-aging]').forEach(b=>b.onclick=()=>{$('agingFilter').value=b.dataset.aging;render()});$('priorityToggle').onclick=()=>{showAllPriorities=!showAllPriorities;render()};document.querySelectorAll('.stat[data-filter]').forEach(b=>b.onclick=()=>{$('filter').value=b.dataset.filter;render()});
 
 function moneyBR(s){if(!s)return 0;return Number(s.replace(/\./g,'').replace(',','.'))||0}
 function field(block,label,nextLabels){const next=nextLabels.map(x=>x.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|');const re=new RegExp(label+'\\s*:?\\s*([\\s\\S]*?)(?=\\s+(?:'+next+')\\s*:?|$)','i');const m=block.match(re);return m?m[1].replace(/\s+/g,' ').trim():''}

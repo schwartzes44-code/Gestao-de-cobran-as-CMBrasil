@@ -7,7 +7,7 @@
   <title>Gestão de Cobranças</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles-alpha4.css?v=1.0.0a41" />
+  <link rel="stylesheet" href="styles-alpha4.css?v=1.0.0a42" />
 </head>
 <body>
   <section id="authGate" class="auth-gate">
@@ -22,7 +22,7 @@
         <button id="loginBtn" class="primary" type="submit">Entrar</button>
       </form>
       <div id="authMessage" class="auth-message" hidden></div>
-      <small>v1.0 Alpha 4.1 • correção de login</small>
+      <small>v1.0 Alpha 4.2 • faixas de atraso</small>
     </div>
   </section>
 
@@ -32,7 +32,7 @@
       <div class="brand">GESTÃO DE COBRANÇAS</div>
       <div class="subbrand">CMBrasil • acompanhamento de atrasos</div>
     </div>
-    <div class="top-actions"><span id="userIdentity" class="user-identity"></span><span class="version-badge">v1.0 Alpha 4.1</span><button class="ghost" id="logoutBtn">Sair</button><button class="ghost" id="updateBtn" hidden>Atualizar app</button><button class="ghost" id="installBtn" hidden>Instalar</button></div>
+    <div class="top-actions"><span id="userIdentity" class="user-identity"></span><span class="version-badge">v1.0 Alpha 4.2</span><button class="ghost" id="logoutBtn">Sair</button><button class="ghost" id="updateBtn" hidden>Atualizar app</button><button class="ghost" id="installBtn" hidden>Instalar</button></div>
   </header>
 
   <main class="wrap">
@@ -63,9 +63,24 @@
         </label>
       </div>
       <div id="importStatus" class="notice" hidden></div>
+      <section class="aging-section" aria-label="Faixas de atraso">
+        <div class="aging-head">
+          <div><h2>Faixas de atraso</h2><p>Classificação pelo maior atraso do cliente.</p></div>
+          <button type="button" class="secondary aging-clear" id="clearAgingFilter" hidden>Limpar faixa</button>
+        </div>
+        <div class="aging-grid">
+          <button type="button" class="aging-card faixa-a" data-aging="A"><strong id="faixaA">0</strong><span>Faixa A</span><small>0 a 29 dias</small></button>
+          <button type="button" class="aging-card faixa-b" data-aging="B"><strong id="faixaB">0</strong><span>Faixa B</span><small>30 a 59 dias</small></button>
+          <button type="button" class="aging-card faixa-c" data-aging="C"><strong id="faixaC">0</strong><span>Faixa C</span><small>60 a 90 dias</small></button>
+          <button type="button" class="aging-card faixa-d" data-aging="D"><strong id="faixaD">0</strong><span>Faixa D</span><small>91 a 120 dias</small></button>
+          <button type="button" class="aging-card faixa-e" data-aging="E"><strong id="faixaE">0</strong><span>Faixa E</span><small>121 a 180 dias</small></button>
+          <button type="button" class="aging-card faixa-g" data-aging="G"><strong id="faixaG">0</strong><span>Faixa G</span><small>Acima de 180 dias</small></button>
+        </div>
+      </section>
       <div class="toolbar">
         <input id="search" placeholder="Buscar cliente, cidade, CPF ou agente" />
         <select id="agentFilter"><option value="todos">Todos os agentes</option></select>
+        <select id="agingFilter"><option value="todos">Todas as faixas</option><option value="A">Faixa A • 0–29 dias</option><option value="B">Faixa B • 30–59 dias</option><option value="C">Faixa C • 60–90 dias</option><option value="D">Faixa D • 91–120 dias</option><option value="E">Faixa E • 121–180 dias</option><option value="G">Faixa G • acima de 180 dias</option></select>
         <select id="filter">
           <option value="todos">Todos os status</option>
           <option value="hoje">Previsão hoje</option>
@@ -166,8 +181,8 @@
 
   </div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="cloud-alpha3.js?v=1.0.0a41"></script>
+  <script src="cloud-alpha3.js?v=1.0.0a42"></script>
   <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@2.16.105/build/pdf.min.js"></script>
-  <script src="app-alpha4.js?v=1.0.0a41"></script>
+  <script src="app-alpha4.js?v=1.0.0a42"></script>
 </body>
 </html>
