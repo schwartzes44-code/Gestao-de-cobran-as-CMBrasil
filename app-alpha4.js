@@ -145,7 +145,7 @@ function render(){
  $('sAmanha').textContent=arr.filter(c=>statusOf(c)==='amanha').length;
  $('sVencidas').textContent=arr.filter(c=>statusOf(c)==='vencidas').length;
  $('sFuturas').textContent=arr.filter(c=>statusOf(c)==='futura').length;
- ['A','B','C','D','E','G'].forEach(f=>{const el=$('faixa'+f);if(el)el.textContent=arr.filter(c=>agingBand(c)===f).length});
+ ['A','B','C','D','E','G'].forEach(f=>{const faixaClientes=arr.filter(c=>agingBand(c)===f);const el=$('faixa'+f);if(el)el.textContent=faixaClientes.length;const valorEl=$('valorFaixa'+f);if(valorEl)valorEl.textContent=brl(faixaClientes.reduce((s,c)=>s+totalK(c),0));});
  document.querySelectorAll('[data-aging]').forEach(btn=>btn.classList.toggle('active',$('agingFilter')?.value===btn.dataset.aging));
  if($('clearAgingFilter'))$('clearAgingFilter').hidden=!$('agingFilter')||$('agingFilter').value==='todos';
  renderPriorities(arr);

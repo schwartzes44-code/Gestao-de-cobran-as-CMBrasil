@@ -1,14 +1,10 @@
-Gestão de Cobranças CMBrasil v1.0 Alpha 4.1
-Correção de login mantendo recursos de avalistas e cônjuges da Alpha 4.
-A Alpha 3 permanece preservada como ponto estável.
+Gestão de Cobranças CMBrasil — v1.0 Alpha 4.3
 
+Base: Alpha 4.2 estável.
 
-ALPHA 4.2 — FAIXAS DE ATRASO
-- Faixa A: 0 a 29 dias
-- Faixa B: 30 a 59 dias
-- Faixa C: 60 a 90 dias
-- Faixa D: 91 a 120 dias
-- Faixa E: 121 a 180 dias
-- Faixa G: acima de 180 dias
-- Classificação calculada pelo maior atraso do cliente; não exige alteração no Supabase.
-- Filtro e cartões clicáveis por faixa.
+Evolução:
+- Mantém as faixas A, B, C, D, E e G.
+- Cada faixa exibe quantidade de clientes e Valor K total em atraso.
+- O cálculo respeita a carteira visível para o usuário/perfil.
+- Os cartões continuam clicáveis para filtrar a carteira.
+- Não exige alteração no Supabase.
