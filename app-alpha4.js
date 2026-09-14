@@ -146,6 +146,9 @@ function render(){
  $('sVencidas').textContent=arr.filter(c=>statusOf(c)==='vencidas').length;
  $('sFuturas').textContent=arr.filter(c=>statusOf(c)==='futura').length;
  ['A','B','C','D','E','G'].forEach(f=>{const faixaClientes=arr.filter(c=>agingBand(c)===f);const el=$('faixa'+f);if(el)el.textContent=faixaClientes.length;const valorEl=$('valorFaixa'+f);if(valorEl)valorEl.textContent=brl(faixaClientes.reduce((s,c)=>s+totalK(c),0));});
+ const totalValorK=arr.reduce((s,c)=>s+totalK(c),0);
+ const strategyGroups=[['Contencao',['A','B']],['Atencao',['C','D']],['Recuperacao',['E','G']]];
+ strategyGroups.forEach(([key,bands])=>{const clientes=arr.filter(c=>bands.includes(agingBand(c)));const valor=clientes.reduce((s,c)=>s+totalK(c),0);const pct=totalValorK>0?(valor/totalValorK*100):0;const cEl=$('estrategia'+key+'Clientes'),vEl=$('estrategia'+key+'Valor'),pEl=$('estrategia'+key+'Pct');if(cEl)cEl.textContent=`${clientes.length} cliente${clientes.length===1?'':'s'}`;if(vEl)vEl.textContent=brl(valor);if(pEl)pEl.textContent=`${pct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})}% do Valor K • Faixas ${bands.join(' + ')}`;});
  document.querySelectorAll('[data-aging]').forEach(btn=>btn.classList.toggle('active',$('agingFilter')?.value===btn.dataset.aging));
  if($('clearAgingFilter'))$('clearAgingFilter').hidden=!$('agingFilter')||$('agingFilter').value==='todos';
  renderPriorities(arr);

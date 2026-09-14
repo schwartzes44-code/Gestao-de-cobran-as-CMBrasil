@@ -7,7 +7,7 @@
   <title>Gestão de Cobranças</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles-alpha4.css?v=1.0.0a43" />
+  <link rel="stylesheet" href="styles-alpha4.css?v=1.0.0a44" />
 </head>
 <body>
   <section id="authGate" class="auth-gate">
@@ -22,7 +22,7 @@
         <button id="loginBtn" class="primary" type="submit">Entrar</button>
       </form>
       <div id="authMessage" class="auth-message" hidden></div>
-      <small>v1.0 Alpha 4.3 • valor por faixa</small>
+      <small>v1.0 Alpha 4.4 • estratégia gerencial</small>
     </div>
   </section>
 
@@ -32,7 +32,7 @@
       <div class="brand">GESTÃO DE COBRANÇAS</div>
       <div class="subbrand">CMBrasil • acompanhamento de atrasos</div>
     </div>
-    <div class="top-actions"><span id="userIdentity" class="user-identity"></span><span class="version-badge">v1.0 Alpha 4.3</span><button class="ghost" id="logoutBtn">Sair</button><button class="ghost" id="updateBtn" hidden>Atualizar app</button><button class="ghost" id="installBtn" hidden>Instalar</button></div>
+    <div class="top-actions"><span id="userIdentity" class="user-identity"></span><span class="version-badge">v1.0 Alpha 4.4</span><button class="ghost" id="logoutBtn">Sair</button><button class="ghost" id="updateBtn" hidden>Atualizar app</button><button class="ghost" id="installBtn" hidden>Instalar</button></div>
   </header>
 
   <main class="wrap">
@@ -63,6 +63,16 @@
         </label>
       </div>
       <div id="importStatus" class="notice" hidden></div>
+      <section class="strategy-section" aria-label="Estratégia gerencial por atraso">
+        <div class="strategy-head">
+          <div><h2>Estratégia gerencial</h2><p>Visão consolidada para contenção, atenção e recuperação.</p></div>
+        </div>
+        <div class="strategy-grid">
+          <div class="strategy-card strategy-contencao"><span>CONTENÇÃO</span><strong id="estrategiaContencaoClientes">0 clientes</strong><em id="estrategiaContencaoValor">R$ 0,00</em><small id="estrategiaContencaoPct">0,0% do Valor K • Faixas A + B</small></div>
+          <div class="strategy-card strategy-atencao"><span>ATENÇÃO</span><strong id="estrategiaAtencaoClientes">0 clientes</strong><em id="estrategiaAtencaoValor">R$ 0,00</em><small id="estrategiaAtencaoPct">0,0% do Valor K • Faixas C + D</small></div>
+          <div class="strategy-card strategy-recuperacao"><span>RECUPERAÇÃO</span><strong id="estrategiaRecuperacaoClientes">0 clientes</strong><em id="estrategiaRecuperacaoValor">R$ 0,00</em><small id="estrategiaRecuperacaoPct">0,0% do Valor K • Faixas E + G</small></div>
+        </div>
+      </section>
       <section class="aging-section" aria-label="Faixas de atraso">
         <div class="aging-head">
           <div><h2>Faixas de atraso</h2><p>Classificação pelo maior atraso do cliente.</p></div>
@@ -181,8 +191,8 @@
 
   </div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="cloud-alpha3.js?v=1.0.0a43"></script>
+  <script src="cloud-alpha3.js?v=1.0.0a44"></script>
   <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@2.16.105/build/pdf.min.js"></script>
-  <script src="app-alpha4.js?v=1.0.0a43"></script>
+  <script src="app-alpha4.js?v=1.0.0a44"></script>
 </body>
 </html>

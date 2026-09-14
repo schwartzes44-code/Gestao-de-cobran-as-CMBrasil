@@ -49,8 +49,8 @@ function applyCloudIdentity(){
     ? `${cloud.profile.nome} • Gestor`
     : `${cloud.profile.nome} • ${codigos.join(', ')||'Sem carteira'}`;
   byId('cloudStatus').textContent=gestor
-    ? `Base central conectada • Alpha 4.1 • ${cloud.carteiras.length} carteira(s) cadastrada(s)`
-    : `Base central conectada • Alpha 4.1 • carteira ${codigos.join(', ')||'não vinculada'}`;
+    ? `Base central conectada • Alpha 4.4 • ${cloud.carteiras.length} carteira(s) cadastrada(s)`
+    : `Base central conectada • Alpha 4.4 • carteira ${codigos.join(', ')||'não vinculada'}`;
   byId('managerImportLabel').hidden=!gestor;
   byId('managerImportLabel').style.display=gestor?'inline-flex':'none';
   byId('localDataPanel').hidden=!gestor;

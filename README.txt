@@ -1,10 +1,6 @@
-Gestão de Cobranças CMBrasil — v1.0 Alpha 4.3
+Gestão de Cobranças CMBrasil — v1.0 Alpha 4.4
 
-Base: Alpha 4.2 estável.
-
-Evolução:
-- Mantém as faixas A, B, C, D, E e G.
-- Cada faixa exibe quantidade de clientes e Valor K total em atraso.
-- O cálculo respeita a carteira visível para o usuário/perfil.
-- Os cartões continuam clicáveis para filtrar a carteira.
-- Não exige alteração no Supabase.
+Base: Alpha 4.3 estável.
+Novidade: painel Estratégia gerencial com Contenção (A+B), Atenção (C+D) e Recuperação (E+G), exibindo clientes, Valor K e percentual do Valor K total.
+Também corrige o texto do banner da base central para Alpha 4.4.
+Não requer alteração SQL no Supabase.
