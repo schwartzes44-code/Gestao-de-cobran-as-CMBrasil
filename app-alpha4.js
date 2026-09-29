@@ -175,7 +175,7 @@ function reportDateLabel(c){
 function renderInstallments(c){
  const rows=[...(c.installments||[])].sort((a,b)=>(a.due||'').localeCompare(b.due||''));
  $('installmentsReportDate').textContent=reportDateLabel(c);
- $('installmentsBody').innerHTML=rows.length?rows.map(x=>`<tr><td><strong>${x.installmentNumber!=null?String(x.installmentNumber).padStart(3,'0')+'/'+x.totalInstallments:'—'}</strong><small class="parcel-contract">${x.contract?'Contrato '+x.contract:''}</small></td><td>${localDate(x.due)}</td><td>${brl(x.valorReceber)}</td><td><strong>${brl(x.saldo)}</strong></td></tr>`).join(''):'<tr><td colspan="4" class="installments-empty">Nenhuma parcela em atraso encontrada.</td></tr>';
+ $('installmentsBody').innerHTML=rows.length?rows.map(x=>`<tr><td><strong>${x.installmentNumber!=null?String(x.installmentNumber).padStart(3,'0')+'/'+x.totalInstallments:'—'}</strong><small class="parcel-contract">${x.contract?'Contrato '+(String(x.contract).startsWith('025-')?x.contract:'025-'+x.contract):''}</small></td><td>${localDate(x.due)}</td><td>${brl(x.valorReceber)}</td><td><strong>${brl(x.saldo)}</strong></td></tr>`).join(''):'<tr><td colspan="4" class="installments-empty">Nenhuma parcela em atraso encontrada.</td></tr>';
 }
 function contactHref(person){
  const ph=normalizePhone(person?.whatsapp||person?.phone||'');
