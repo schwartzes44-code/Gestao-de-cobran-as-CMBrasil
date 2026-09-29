@@ -175,7 +175,7 @@ function reportDateLabel(c){
 function renderInstallments(c){
  const rows=[...(c.installments||[])].sort((a,b)=>(a.due||'').localeCompare(b.due||''));
  $('installmentsReportDate').textContent=reportDateLabel(c);
- $('installmentsBody').innerHTML=rows.length?rows.map(x=>`<tr><td>${localDate(x.due)}</td><td>${brl(x.valorReceber)}</td><td><strong>${brl(x.saldo)}</strong></td></tr>`).join(''):'<tr><td colspan="3" class="installments-empty">Nenhuma parcela em atraso encontrada.</td></tr>';
+ $('installmentsBody').innerHTML=rows.length?rows.map(x=>`<tr><td><strong>${x.installmentNumber!=null?String(x.installmentNumber).padStart(3,'0')+'/'+x.totalInstallments:'—'}</strong><small class="parcel-contract">${x.contract?'Contrato '+x.contract:''}</small></td><td>${localDate(x.due)}</td><td>${brl(x.valorReceber)}</td><td><strong>${brl(x.saldo)}</strong></td></tr>`).join(''):'<tr><td colspan="4" class="installments-empty">Nenhuma parcela em atraso encontrada.</td></tr>';
 }
 function contactHref(person){
  const ph=normalizePhone(person?.whatsapp||person?.phone||'');
@@ -317,7 +317,7 @@ function parsePDFText(text){
    const address=field(block,'Endereco',['Bairro']);
    const installments=[];
    const rowRe=/(\d{8}-\d{2}-\d{3}\/\d+)\s+(\d{2}\/\d{2}\/\d{2})\s+([^\n]+)/g;let r;
-   while((r=rowRe.exec(block))){const rest=r[3], monies=[...rest.matchAll(/[\d.]+,\d{2}/g)].map(x=>moneyBR(x[0]));const beforeMoney=rest.slice(0,rest.search(/[\d.]+,\d{2}/)).trim().split(/\s+/);const nums=beforeMoney.map(x=>/^\d+$/.test(x)?+x:null).filter(x=>x!=null);const days=nums.length?nums[nums.length-1]:0;installments.push({parcel:r[1],due:isoFromBR(r[2]),daysLate:days,valorK:monies[0]||0,valorReceber:monies[1]||0,saldo:monies[monies.length-1]||0})}
+   while((r=rowRe.exec(block))){const rest=r[3], monies=[...rest.matchAll(/[\d.]+,\d{2}/g)].map(x=>moneyBR(x[0]));const beforeMoney=rest.slice(0,rest.search(/[\d.]+,\d{2}/)).trim().split(/\s+/);const nums=beforeMoney.map(x=>/^\d+$/.test(x)?+x:null).filter(x=>x!=null);const days=nums.length?nums[nums.length-1]:0;const pm=r[1].match(/^(\d{8}-\d{2})-(\d{3})\/(\d+)$/);installments.push({parcel:r[1],contract:pm?pm[1]:'',installmentNumber:pm?Number(pm[2]):null,totalInstallments:pm?Number(pm[3]):null,due:isoFromBR(r[2]),daysLate:days,valorK:monies[0]||0,valorReceber:monies[1]||0,saldo:monies[monies.length-1]||0})}
    const responsibles=parseResponsibleContacts(block);
    clients.push({id:recordKey(agent,code),code,name,cpf,agent,city,phone,whatsapp:wa,lastPayment,activity,line,address,installments,responsibles});
  }
@@ -346,7 +346,7 @@ async function importParsedToCloud(file,parsed){
  const ids=Object.values(idByCode);
  if(ids.length){const del=await cloud.client.from('parcelas').delete().in('cliente_id',ids);if(del.error)throw del.error;}
  const parcelas=[];
- for(const c of parsed.clients){const cid=idByCode[String(c.code)];for(const x of c.installments||[])parcelas.push({cliente_id:cid,vencimento:x.due,valor_receber:Number(x.valorReceber||0),saldo:Number(x.saldo||0),dias_atraso:Number(x.daysLate||0),atualizado_pdf_em:now})}
+ for(const c of parsed.clients){const cid=idByCode[String(c.code)];for(const x of c.installments||[])parcelas.push({cliente_id:cid,numero_documento:x.parcel||null,contrato:x.contract||null,numero_parcela:x.installmentNumber,total_parcelas:x.totalInstallments,vencimento:x.due,valor_receber:Number(x.valorReceber||0),saldo:Number(x.saldo||0),dias_atraso:Number(x.daysLate||0),atualizado_pdf_em:now})}
  if(parcelas.length){const ins=await cloud.client.from('parcelas').insert(parcelas);if(ins.error)throw ins.error;}
  const docs=parcelas.length;
  const imp=await cloud.client.from('importacoes').insert({carteira_id:carteira.id,usuario_id:cloud.user.id,nome_arquivo:file.name,data_relatorio:parsed.reportDate||null,clientes:parsed.clients.length,documentos:docs,valor_k:Number(parsed.summary?.valorK||parsed.clients.reduce((a,c)=>a+totalK(c),0))});
@@ -375,7 +375,7 @@ $('restoreInput').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{
 
 async function loadCentralData(){
  const cloud=window.CMCloud;if(!cloud?.ready)return;
- const {data:clients,error}=await cloud.client.from('clientes').select('id,carteira_id,codigo,nome,cpf_cnpj,cidade,telefone,responsaveis,ultimo_pagamento,parcelas_atraso,maior_atraso,valor_k,ativo,atualizado_pdf_em,parcelas(id,vencimento,valor_receber,saldo,dias_atraso)').eq('ativo',true);
+ const {data:clients,error}=await cloud.client.from('clientes').select('id,carteira_id,codigo,nome,cpf_cnpj,cidade,telefone,responsaveis,ultimo_pagamento,parcelas_atraso,maior_atraso,valor_k,ativo,atualizado_pdf_em,parcelas(id,numero_documento,contrato,numero_parcela,total_parcelas,vencimento,valor_receber,saldo,dias_atraso)').eq('ativo',true);
  if(error)throw error;
  const {data:hist,error:herr}=await cloud.client.from('cobrancas').select('id,cliente_id,usuario_id,observacao,previsao_pagamento,created_at').order('created_at',{ascending:true});
  if(herr)throw herr;
@@ -391,7 +391,7 @@ async function loadCentralData(){
      history.push({cloudId:h.id,type:'cobranca',note:h.observacao||'Cobrança registrada',promiseDate:h.previsao_pagamento||'',at:h.created_at});
    }
    const key=recordKey(carteira.codigo,row.codigo);
-   out[key]={id:key,cloudId:row.id,code:row.codigo,name:row.nome,cpf:row.cpf_cnpj||'',agent:carteira.codigo,city:row.cidade||'',phone:row.telefone||'',whatsapp:row.telefone||'',responsibles:row.responsaveis||{},lastPayment:row.ultimo_pagamento?localDate(row.ultimo_pagamento):'',installments:(row.parcelas||[]).map(x=>({cloudId:x.id,due:x.vencimento,daysLate:x.dias_atraso||0,valorReceber:Number(x.valor_receber||0),saldo:Number(x.saldo||0),valorK:0})),valorKTotal:Number(row.valor_k||0),promiseDate,history,paid:false,archived:false,pdfUpdatedAt:row.atualizado_pdf_em||'',reportDate:''};
+   out[key]={id:key,cloudId:row.id,code:row.codigo,name:row.nome,cpf:row.cpf_cnpj||'',agent:carteira.codigo,city:row.cidade||'',phone:row.telefone||'',whatsapp:row.telefone||'',responsibles:row.responsaveis||{},lastPayment:row.ultimo_pagamento?localDate(row.ultimo_pagamento):'',installments:(row.parcelas||[]).map(x=>({cloudId:x.id,parcel:x.numero_documento||'',contract:x.contrato||'',installmentNumber:x.numero_parcela,totalInstallments:x.total_parcelas,due:x.vencimento,daysLate:x.dias_atraso||0,valorReceber:Number(x.valor_receber||0),saldo:Number(x.saldo||0),valorK:0})),valorKTotal:Number(row.valor_k||0),promiseDate,history,paid:false,archived:false,pdfUpdatedAt:row.atualizado_pdf_em||'',reportDate:''};
  }
  cloudClients=out;
  const {data:imports}=await cloud.client.from('importacoes').select('clientes,documentos,valor_k,created_at').order('created_at',{ascending:false}).limit(1);
