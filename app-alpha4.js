@@ -3,8 +3,8 @@ const DBKEY='cmbrasil_cobrancas_v01';
 let state=JSON.parse(localStorage.getItem(DBKEY)||'{"clients":{},"summary":null,"lastImport":null}');
 let currentId=null, deferredPrompt=null, showAllPriorities=false;
 let cloudClients={}, cloudSummary=null, cloudLastImport=null;
-const APP_VERSION='1.0.0-alpha.3';
-window.CM_APP_BUILD='alpha3-central-write';
+const APP_VERSION='1.0.0-alpha.4.7';
+window.CM_APP_BUILD='alpha4.7-history-authors';
 
 function recordKey(agent,code){return `${(agent||'SEM-AGENTE').trim()}::${code}`}
 function migrateState(){
@@ -55,7 +55,7 @@ function migrateState(){
 migrateState();
 
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('./service-worker.js?v=1.0.0a3',{updateViaCache:'none'}).then(reg=>{
+  navigator.serviceWorker.register('./service-worker.js?v=1.0-alpha4.7',{updateViaCache:'none'}).then(reg=>{
     reg.update().catch(()=>{});
     const revealUpdate=()=>{if(reg.waiting)$('updateBtn').hidden=false};
     revealUpdate();
@@ -206,15 +206,19 @@ function openClient(id){
  $('clearPromise').disabled=archived||!c.promiseDate;$('clearPromise').hidden=!c.promiseDate;
  renderHistory(c,archived);$('clientDialog').showModal();
 }
+function escapeHistoryText(value){return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));}
+function canDeleteHistory(){return !window.CMCloud?.ready || window.CMCloud.profile?.perfil==='gestor';}
 function renderHistory(c,archived=false){
  const entries=(c.history||[]).map((h,i)=>({h,i})).reverse();
- $('history').innerHTML=entries.length?entries.map(({h,i})=>`<div class="history-item"><div class="history-main"><strong>${h.note||h.type}</strong><br><small>${new Date(h.at).toLocaleString('pt-BR')}${h.promiseDate?' • previsão '+localDate(h.promiseDate):''}</small></div>${archived?'':`<button type="button" class="history-delete" data-history-index="${i}" title="Excluir este registro">Excluir</button>`}</div>`).join(''):'<div class="empty">Sem histórico.</div>';
+ const allowDelete=!archived&&canDeleteHistory();
+ $('history').innerHTML=entries.length?entries.map(({h,i})=>`<div class="history-item"><div class="history-main"><strong>${escapeHistoryText(h.note||h.type)}</strong><br><small>${escapeHistoryText(h.authorName||'Responsável não identificado')} • ${escapeHistoryText(h.at?new Date(h.at).toLocaleString('pt-BR'):'Data não informada')}${h.promiseDate?' • previsão '+escapeHistoryText(localDate(h.promiseDate)):''}</small></div>${allowDelete?`<button type="button" class="history-delete" data-history-index="${i}" title="Excluir este registro">Excluir</button>`:''}</div>`).join(''):'<div class="empty">Sem histórico.</div>';
  document.querySelectorAll('[data-history-index]').forEach(btn=>btn.onclick=()=>deleteHistoryItem(Number(btn.dataset.historyIndex)));
 }
 async function reloadCentralAndReopen(){
  const keep=currentId;await loadCentralData();render();if(keep&&cloudClients[keep])openClient(keep);
 }
 async function deleteHistoryItem(index){
+ if(!canDeleteHistory()){alert('Somente o gestor pode excluir observações.');return;}
  const c=getClient(currentId);if(!c||!c.history||!c.history[index])return;
  if(!confirm('Excluir esta observação do histórico? Esta ação não pode ser desfeita.'))return;
  if(window.CMCloud?.ready){
@@ -244,7 +248,7 @@ $('saveCollection').onclick=async()=>{
    if(error){alert('Não foi possível salvar a cobrança: '+error.message);return}
    await reloadCentralAndReopen();return;
  }
- c.promiseDate=promiseDate;c.history=c.history||[];c.history.push({type:'cobranca',note:note||'Agendamento registrado',promiseDate,at:new Date().toISOString()});save();openClient(currentId)
+ c.promiseDate=promiseDate;c.history=c.history||[];c.history.push({type:'cobranca',note:note||'Agendamento registrado',promiseDate,at:new Date().toISOString(),authorName:'Registro local'});save();openClient(currentId)
 };
 $('markPaid').onclick=()=>{if(window.CMCloud?.ready){alert('A função “Marcar como pago” será integrada à base central na próxima etapa.');return}const c=state.clients[currentId];if(!c)return;c.paid=true;c.history=c.history||[];c.history.push({type:'pago',note:'Marcado como pago',at:new Date().toISOString()});save();$('clientDialog').close()};
 
@@ -379,6 +383,10 @@ async function loadCentralData(){
  if(error)throw error;
  const {data:hist,error:herr}=await cloud.client.from('cobrancas').select('id,cliente_id,usuario_id,observacao,previsao_pagamento,created_at').order('created_at',{ascending:true});
  if(herr)throw herr;
+ const {data:autores,error:autoresError}=await cloud.client.rpc('autores_cobrancas_visiveis');
+ if(autoresError)throw new Error('Não foi possível carregar os responsáveis das observações: '+autoresError.message);
+ const authorNames=Object.fromEntries((autores||[]).map(x=>[x.usuario_id,x.nome]));
+ if(cloud.user?.id&&cloud.profile?.nome)authorNames[cloud.user.id]=cloud.profile.nome;
  const byClient={};for(const h of hist||[])(byClient[h.cliente_id]??=[]).push(h);
  const carteiraById=Object.fromEntries((cloud.carteiras||[]).map(c=>[c.id,c]));
  const out={};
@@ -386,9 +394,9 @@ async function loadCentralData(){
    const carteira=carteiraById[row.carteira_id];if(!carteira)continue;
    const hs=byClient[row.id]||[];let promiseDate='';const history=[];
    for(const h of hs){
-     if(h.observacao==='[AGENDAMENTO_REMOVIDO]'){promiseDate='';history.push({cloudId:h.id,type:'cobranca',note:'Agendamento removido',promiseDate:'',at:h.created_at});continue}
+     if(h.observacao==='[AGENDAMENTO_REMOVIDO]'){promiseDate='';history.push({cloudId:h.id,type:'cobranca',note:'Agendamento removido',promiseDate:'',at:h.created_at,authorName:authorNames[h.usuario_id]||'Responsável não identificado'});continue}
      if(h.previsao_pagamento)promiseDate=h.previsao_pagamento;
-     history.push({cloudId:h.id,type:'cobranca',note:h.observacao||'Cobrança registrada',promiseDate:h.previsao_pagamento||'',at:h.created_at});
+     history.push({cloudId:h.id,type:'cobranca',note:h.observacao||'Cobrança registrada',promiseDate:h.previsao_pagamento||'',at:h.created_at,authorName:authorNames[h.usuario_id]||'Responsável não identificado'});
    }
    const key=recordKey(carteira.codigo,row.codigo);
    out[key]={id:key,cloudId:row.id,code:row.codigo,name:row.nome,cpf:row.cpf_cnpj||'',agent:carteira.codigo,city:row.cidade||'',phone:row.telefone||'',whatsapp:row.telefone||'',responsibles:row.responsaveis||{},lastPayment:row.ultimo_pagamento?localDate(row.ultimo_pagamento):'',installments:(row.parcelas||[]).map(x=>({cloudId:x.id,parcel:x.numero_documento||'',contract:x.contrato||'',installmentNumber:x.numero_parcela,totalInstallments:x.total_parcelas,due:x.vencimento,daysLate:x.dias_atraso||0,valorReceber:Number(x.valor_receber||0),saldo:Number(x.saldo||0),valorK:0})),valorKTotal:Number(row.valor_k||0),promiseDate,history,paid:false,archived:false,pdfUpdatedAt:row.atualizado_pdf_em||'',reportDate:''};
