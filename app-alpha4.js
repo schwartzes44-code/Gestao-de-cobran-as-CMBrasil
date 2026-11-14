@@ -415,6 +415,15 @@ $('pdfInput').onchange=async e=>{
  const file=e.target.files[0];if(!file)return;const box=$('importStatus');box.hidden=false;box.className='notice';box.textContent='Lendo PDF e sincronizando com a base central...';
  try{
    const text=await extractPDF(file),parsed=parsePDFText(text);if(!parsed.clients.length)throw new Error('Nenhum cliente foi reconhecido neste PDF.');
+   const clientCount=parsed.clients.length;
+   const docsCount=parsed.clients.reduce((n,c)=>n+(c.installments||[]).length,0);
+   const addresses=parsed.clients.filter(c=>c.address&&c.neighborhood&&c.city).length;
+   const guarantors=parsed.clients.flatMap(c=>c.responsibles?.guarantors||[]);
+   const guarantorAddresses=guarantors.filter(g=>g.address?.street&&g.address?.city).length;
+   const summary='Prévia do PDF: '+clientCount+' clientes, '+docsCount+' parcelas, '+addresses+' endereços de clientes e '+guarantorAddresses+'/'+guarantors.length+' endereços de avalistas.';
+   if(!window.CMCloud?.ready){box.className='notice';box.textContent=summary+' Nenhum dado foi enviado: base central desconectada.';return;}
+   const approved=window.confirm(summary+'\\n\\nATENÇÃO: a importação atualizará a carteira no Supabase, incluindo parcelas e situação ativa dos clientes. Deseja continuar?');
+   if(!approved){box.className='notice';box.textContent=summary+' Importação cancelada; nenhuma gravação realizada.';return;}
    if(window.CMCloud?.ready){const r=await importParsedToCloud(file,parsed);box.className='notice ok';box.textContent=`Base central confirmada: ${r.code} — ${r.confirmados} clientes e ${r.docs} documentos gravados no Supabase. Os agentes vinculados já podem acessar os dados.`;render();}
    else throw new Error('A base central ainda não está conectada.');
  }catch(err){box.className='notice bad';box.textContent='Erro: '+err.message}finally{e.target.value=''}
