@@ -102,9 +102,22 @@ function syncAgentFilter(){
  sel.value=agents.includes(prev)?prev:'todos';
  $('portfolioInfo').textContent=agents.length?`${agents.length} carteira(s) ativa(s): ${agents.join(', ')}`:'Nenhuma carteira importada.';
 }
+function syncLocationFilters(){
+ const cityEl=$('cityFilter'),areaEl=$('neighborhoodFilter');
+ const available=activeClients().filter(c=>$('agentFilter').value==='todos'||c.agent===$('agentFilter').value);
+ const cityOptions=[...new Set(available.map(c=>c.city).filter(Boolean).map(x=>x.trim()))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+ const currentCity=cityEl.value;
+ cityEl.innerHTML='<option value="todos">Todas as cidades</option>'+cityOptions.map(c=>'<option value="'+safeText(c)+'">'+safeText(c)+'</option>').join('');
+ cityEl.value=cityOptions.includes(currentCity)?currentCity:'todos';
+ const neighborhoods=[...new Set(available.filter(c=>cityEl.value==='todos'||normalizedPlace(c.city)===normalizedPlace(cityEl.value)).map(c=>c.neighborhood).filter(Boolean).map(x=>x.trim()))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+ const currentArea=areaEl.value;
+ areaEl.innerHTML='<option value="todos">Todos os bairros</option>'+neighborhoods.map(x=>'<option value="'+safeText(x)+'">'+safeText(x)+'</option>').join('');
+ areaEl.value=neighborhoods.includes(currentArea)?currentArea:'todos';
+}
 function scopedClients(){
  const agent=$('agentFilter').value;
- return activeClients().filter(c=>agent==='todos'||c.agent===agent);
+ const city=$('cityFilter').value,neighborhood=$('neighborhoodFilter').value;
+ return activeClients().filter(c=>(agent==='todos'||c.agent===agent)&&(city==='todos'||normalizedPlace(c.city)===normalizedPlace(city))&&(neighborhood==='todos'||normalizedPlace(c.neighborhood)===normalizedPlace(neighborhood)));
 }
 
 function renderPriorities(arr){
@@ -136,6 +149,7 @@ function renderPriorities(arr){
 
 function render(){
  syncAgentFilter();
+ syncLocationFilters();
  const arr=scopedClients();
  $('sClientes').textContent=arr.length;
  $('sDocumentos').textContent=arr.reduce((s,c)=>s+(c.installments||[]).length,0);
@@ -184,7 +198,7 @@ function contactHref(person){
 function responsibleCard(title,person){
  if(!person?.name)return '';
  const href=contactHref(person);
- return `<div class="responsible-card"><div><small>${title}</small><strong>${person.name}</strong>${person.cpf?`<span>${person.cpf}</span>`:''}${person.phone?`<span>${person.phone}</span>`:''}</div>${href?`<a class="responsible-whatsapp" href="${href}" target="_blank" rel="noopener">WhatsApp</a>`:''}</div>`;
+ return `<div class="responsible-card"><div><small>${title}</small><strong>${person.name}</strong>${person.cpf?`<span>${person.cpf}</span>`:''}${person.phone?`<span>${person.phone}</span>`:''}${addressLabel(person.address)?`<span>Endereço: ${safeText(addressLabel(person.address))}</span>`:''}</div>${href?`<a class="responsible-whatsapp" href="${href}" target="_blank" rel="noopener">WhatsApp</a>`:''}</div>`;
 }
 function renderResponsibles(c){
  const r=c.responsibles||{}, cards=[];
@@ -196,7 +210,7 @@ function renderResponsibles(c){
 function openClient(id){
  const c=getClient(id);if(!c)return;currentId=id;
  $('dName').textContent=c.name;$('dMeta').textContent=`${c.code||''} • ${c.cpf||''}`;
- $('detailGrid').innerHTML=`<div><small>Cidade</small>${c.city||'—'}</div><div><small>Agente</small>${c.agent||'—'}</div><div><small>Telefone</small>${c.phone||'—'}</div><div><small>Último pagamento</small>${c.lastPayment||'—'}</div><div><small>Parcelas em atraso</small>${(c.installments||[]).length}</div><div><small>Maior atraso</small>${oldestDays(c)} dias</div><div><small>Faixa de atraso</small>${agingLabel(c)}</div><div><small>Valor K</small>${brl(totalK(c))}</div><div><small>Atualizado pelo PDF</small>${c.pdfUpdatedAt?new Date(c.pdfUpdatedAt).toLocaleString('pt-BR'):'—'}</div>`;
+ $('detailGrid').innerHTML=`<div><small>Cidade</small>${c.city||'—'}</div><div><small>Endereço</small>${safeText(addressLabel({street:c.address,neighborhood:c.neighborhood,city:c.city,zipCode:c.zipCode})||'—')}${c.address?` <a href="${locationLink({street:c.address,neighborhood:c.neighborhood,city:c.city,zipCode:c.zipCode})}" target="_blank" rel="noopener noreferrer">Abrir no Maps</a>`:''}</div><div><small>Agente</small>${c.agent||'—'}</div><div><small>Telefone</small>${c.phone||'—'}</div><div><small>Último pagamento</small>${c.lastPayment||'—'}</div><div><small>Parcelas em atraso</small>${(c.installments||[]).length}</div><div><small>Maior atraso</small>${oldestDays(c)} dias</div><div><small>Faixa de atraso</small>${agingLabel(c)}</div><div><small>Valor K</small>${brl(totalK(c))}</div><div><small>Atualizado pelo PDF</small>${c.pdfUpdatedAt?new Date(c.pdfUpdatedAt).toLocaleString('pt-BR'):'—'}</div>`;
  renderResponsibles(c);
  renderInstallments(c);
  $('promiseDate').value=c.promiseDate||'';$('note').value='';
@@ -252,7 +266,7 @@ $('saveCollection').onclick=async()=>{
 };
 $('markPaid').onclick=()=>{if(window.CMCloud?.ready){alert('A função “Marcar como pago” será integrada à base central na próxima etapa.');return}const c=state.clients[currentId];if(!c)return;c.paid=true;c.history=c.history||[];c.history.push({type:'pago',note:'Marcado como pago',at:new Date().toISOString()});save();$('clientDialog').close()};
 
-$('search').oninput=render;$('filter').onchange=()=>{showAllPriorities=false;render()};$('agentFilter').onchange=()=>{showAllPriorities=false;render()};$('agingFilter').onchange=()=>{showAllPriorities=false;render()};$('clearAgingFilter').onclick=()=>{$('agingFilter').value='todos';render()};document.querySelectorAll('[data-aging]').forEach(b=>b.onclick=()=>{$('agingFilter').value=b.dataset.aging;render()});$('priorityToggle').onclick=()=>{showAllPriorities=!showAllPriorities;render()};document.querySelectorAll('.stat[data-filter]').forEach(b=>b.onclick=()=>{$('filter').value=b.dataset.filter;render()});
+$('cityFilter').onchange=()=>{ $('neighborhoodFilter').value='todos';render() };$('neighborhoodFilter').onchange=render;$('search').oninput=render;$('filter').onchange=()=>{showAllPriorities=false;render()};$('agentFilter').onchange=()=>{showAllPriorities=false;render()};$('agingFilter').onchange=()=>{showAllPriorities=false;render()};$('clearAgingFilter').onclick=()=>{$('agingFilter').value='todos';render()};document.querySelectorAll('[data-aging]').forEach(b=>b.onclick=()=>{$('agingFilter').value=b.dataset.aging;render()});$('priorityToggle').onclick=()=>{showAllPriorities=!showAllPriorities;render()};document.querySelectorAll('.stat[data-filter]').forEach(b=>b.onclick=()=>{$('filter').value=b.dataset.filter;render()});
 
 function moneyBR(s){if(!s)return 0;return Number(s.replace(/\./g,'').replace(',','.'))||0}
 function field(block,label,nextLabels){const next=nextLabels.map(x=>x.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|');const re=new RegExp(label+'\\s*:?\\s*([\\s\\S]*?)(?=\\s+(?:'+next+')\\s*:?|$)','i');const m=block.match(re);return m?m[1].replace(/\s+/g,' ').trim():''}
@@ -262,6 +276,17 @@ function contactFromText(s){
  const whatsapp=(raw.match(/https:\/\/wa\.me\/(\d+)/i)||[])[1]||'';
  return {phone,whatsapp};
 }
+function pdfAddressFields(text){
+ const value=(label,next)=>field(text,label,next);
+ return {street:value('Endere[cç]o',['Bairro','Cidade','CEP','Fones','Avalistas','Parcela']),
+         neighborhood:value('Bairro',['Cidade','CEP','Fones','Avalistas','Parcela']),
+         city:value('Cidade',['CEP','Fones','Avalistas','Parcela']),
+         zipCode:value('CEP',['Fones','Avalistas','Parcela'])};
+}
+function safeText(s){return String(s??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));}
+function normalizedPlace(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().replace(/\s+/g,' ').toUpperCase();}
+function addressLabel(a){if(!a)return '';return [a.street,a.neighborhood,a.city,a.zipCode].filter(Boolean).join(' • ');}
+function locationLink(a){const addr=addressLabel(a);return addr?'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(addr):'';}
 function parseResponsibleContacts(block){
  const result={clientSpouse:null,guarantors:[]};
  const spouseMatch=block.match(/Nome C[oô]njuge:\s*([\s\S]*?)\s+Fone\(s\):\s*([\s\S]*?)(?=\s+Refer[eê]ncia Pessoal 1:|\s+Meio:|$)/i);
@@ -290,6 +315,13 @@ function parseResponsibleContacts(block){
    const tail=sec.slice(tailStart,tailEnd);
    const sm=tail.match(/Conjuge\s+([\s\S]*?)\s+-\s+(\d{3}\.\d{3}\.\d{3}-\d{2})\s+([\s\S]*?)(?=\s+Endere[cç]o:|$)/i);
    if(sm){const ct=contactFromText(sm[3]);g.spouse={name:sm[1].replace(/\s+/g,' ').trim(),cpf:sm[2],phone:ct.phone,whatsapp:ct.whatsapp};}
+   // O endereço pertence ao avalista corrente; nunca ao cliente ou ao próximo avalista.
+   const addrMatch=tail.match(/Endere[cç]o\s*:?\s*([^\n]*?)(?:\s+ERP Partner|\s+Parcela\s+Vencto|$)/i);
+   if(addrMatch){
+     const line=addrMatch[1].replace(/\s+/g,' ').trim();
+     const parts=line.match(/^(.+?)\s+-\s+(\d{5}-?\d{3})\s+-\s+Bairro\s+(.+?)\s+-\s+(.+)$/i);
+     if(parts)g.address={street:parts[1].replace(/,\s*$/,'').trim(),zipCode:parts[2],neighborhood:parts[3].trim(),city:parts[4].trim()};
+   }
    result.guarantors.push(g);
  }
  return result;
@@ -311,19 +343,21 @@ function parsePDFText(text){
    const code=head[1],name=head[2].replace(/\s+/g,' ').trim(),cpf=head[3];
    const before=text.slice(0,start); const agentMatches=[...before.matchAll(/Agente de Crédito:\s*([^\n]+)/gi)]; let agent=globalAgent;
    if(agentMatches.length) agent=agentMatches[agentMatches.length-1][1].replace(/\s+/g,' ').trim();
-   const city=field(block,'Cidade',['CEP','Fones']);
+   const clientHeader=block.split(/\bAvalistas\s+Nome\s+Fone\(s\)/i)[0].split(/\bParcela\s+Vencto\b/i)[0];
+   const clientAddress=pdfAddressFields(clientHeader);
+   const city=clientAddress.city;
    const phoneField=field(block,'Fones',['E-mail','Último Pagamento']);
    const phone=(phoneField.match(/\(?\d{2}\)?[-\s]?\d{4,5}[-\s]?\d{4}/)||[])[0]||'';
    const wa=(block.match(/https:\/\/wa\.me\/(\d+)/i)||[])[1]||'';
    const lastPayment=(block.match(/Último Pagamento:\s*(\d{2}\/\d{2}\/\d{4})/i)||[])[1]||'';
    const activity=field(block,'Atividade',['De que','Endereco']);
-   const line=field(block,'Linha',['Filial']);
-   const address=field(block,'Endereco',['Bairro']);
+   const line=(block.match(/\bLinha:\s*([^\n]*?)\s+Filial:/i)||[])[1]?.trim()||'';
+   const address=clientAddress.street, neighborhood=clientAddress.neighborhood, zipCode=clientAddress.zipCode;
    const installments=[];
    const rowRe=/(\d{8}-\d{2}-\d{3}\/\d+)\s+(\d{2}\/\d{2}\/\d{2})\s+([^\n]+)/g;let r;
    while((r=rowRe.exec(block))){const rest=r[3], monies=[...rest.matchAll(/[\d.]+,\d{2}/g)].map(x=>moneyBR(x[0]));const beforeMoney=rest.slice(0,rest.search(/[\d.]+,\d{2}/)).trim().split(/\s+/);const nums=beforeMoney.map(x=>/^\d+$/.test(x)?+x:null).filter(x=>x!=null);const days=nums.length?nums[nums.length-1]:0;const pm=r[1].match(/^(\d{8}-\d{2})-(\d{3})\/(\d+)$/);installments.push({parcel:r[1],contract:pm?pm[1]:'',installmentNumber:pm?Number(pm[2]):null,totalInstallments:pm?Number(pm[3]):null,due:isoFromBR(r[2]),daysLate:days,valorK:monies[0]||0,valorReceber:monies[1]||0,saldo:monies[monies.length-1]||0})}
    const responsibles=parseResponsibleContacts(block);
-   clients.push({id:recordKey(agent,code),code,name,cpf,agent,city,phone,whatsapp:wa,lastPayment,activity,line,address,installments,responsibles});
+   clients.push({id:recordKey(agent,code),code,name,cpf,agent,city,phone,whatsapp:wa,lastPayment,activity,line,address,neighborhood,zipCode,installments,responsibles});
  }
  return {summary,clients,agent:globalAgent||clients[0]?.agent||'',reportDate};
 }
@@ -340,9 +374,24 @@ async function importParsedToCloud(file,parsed){
  const carteira=(cloud.carteiras||[]).find(c=>c.codigo.toUpperCase()===code.toUpperCase());
  if(!carteira)throw new Error(`A carteira ${code||'não identificada'} não está cadastrada na base central.`);
  const now=new Date().toISOString();
+ // Preserva contatos e endereços já cadastrados quando o novo PDF não os informa.
+ const existing=await cloud.client.from('clientes').select('codigo,responsaveis,endereco,bairro,cep,cidade').eq('carteira_id',carteira.id);
+ if(existing.error)throw existing.error;
+ const existingByCode=new Map((existing.data||[]).map(x=>[String(x.codigo),x]));
+ const mergeResponsibles=(previous,current)=>{
+   const old=previous&&typeof previous==='object'?previous:{};
+   const incoming=current&&typeof current==='object'?current:{};
+   const oldGuarantors=Array.isArray(old.guarantors)?old.guarantors:[];
+   const newGuarantors=Array.isArray(incoming.guarantors)?incoming.guarantors:[];
+   const byCpf=new Map(oldGuarantors.filter(g=>g?.cpf).map(g=>[g.cpf.replace(/\D/g,''),g]));
+   const merged=newGuarantors.map(g=>{const prev=byCpf.get((g.cpf||'').replace(/\D/g,''))||{};return {...prev,...g,address:g.address||prev.address||null,spouse:g.spouse||prev.spouse||null};});
+   const found=new Set(newGuarantors.map(g=>(g.cpf||'').replace(/\D/g,'')));
+   for(const g of oldGuarantors){if(g?.cpf&&!found.has(g.cpf.replace(/\D/g,'')))merged.push(g);}
+   return {...old,...incoming,clientSpouse:incoming.clientSpouse||old.clientSpouse||null,guarantors:merged};
+ };
  let q=cloud.client.from('clientes').update({ativo:false,atualizado_pdf_em:now}).eq('carteira_id',carteira.id);
  let {error}=await q;if(error)throw error;
- const rows=parsed.clients.map(c=>({carteira_id:carteira.id,codigo:c.code,nome:c.name,cpf_cnpj:c.cpf||null,cidade:c.city||null,telefone:c.whatsapp||c.phone||null,responsaveis:c.responsibles||{},ultimo_pagamento:c.lastPayment?isoFromBR(c.lastPayment):null,parcelas_atraso:(c.installments||[]).length,maior_atraso:oldestDays(c),valor_k:totalK(c),ativo:true,atualizado_pdf_em:now}));
+ const rows=parsed.clients.map(c=>{const prev=existingByCode.get(String(c.code))||{};return {carteira_id:carteira.id,codigo:c.code,nome:c.name,cpf_cnpj:c.cpf||null,cidade:c.city||prev.cidade||null,endereco:c.address||prev.endereco||null,bairro:c.neighborhood||prev.bairro||null,cep:c.zipCode||prev.cep||null,telefone:c.whatsapp||c.phone||null,responsaveis:mergeResponsibles(prev.responsaveis,c.responsibles),ultimo_pagamento:c.lastPayment?isoFromBR(c.lastPayment):null,parcelas_atraso:(c.installments||[]).length,maior_atraso:oldestDays(c),valor_k:totalK(c),ativo:true,atualizado_pdf_em:now}});
  const up=await cloud.client.from('clientes').upsert(rows,{onConflict:'carteira_id,codigo'}).select('id,codigo');
  if(up.error)throw up.error;
  if((up.data||[]).length!==rows.length)throw new Error(`A base central confirmou apenas ${(up.data||[]).length} de ${rows.length} clientes. A importação foi interrompida para evitar falso sucesso.`);
@@ -366,6 +415,15 @@ $('pdfInput').onchange=async e=>{
  const file=e.target.files[0];if(!file)return;const box=$('importStatus');box.hidden=false;box.className='notice';box.textContent='Lendo PDF e sincronizando com a base central...';
  try{
    const text=await extractPDF(file),parsed=parsePDFText(text);if(!parsed.clients.length)throw new Error('Nenhum cliente foi reconhecido neste PDF.');
+   const clientCount=parsed.clients.length;
+   const docsCount=parsed.clients.reduce((n,c)=>n+(c.installments||[]).length,0);
+   const addresses=parsed.clients.filter(c=>c.address&&c.neighborhood&&c.city).length;
+   const guarantors=parsed.clients.flatMap(c=>c.responsibles?.guarantors||[]);
+   const guarantorAddresses=guarantors.filter(g=>g.address?.street&&g.address?.city).length;
+   const summary='Prévia do PDF: '+clientCount+' clientes, '+docsCount+' parcelas, '+addresses+' endereços de clientes e '+guarantorAddresses+'/'+guarantors.length+' endereços de avalistas.';
+   if(!window.CMCloud?.ready){box.className='notice';box.textContent=summary+' Nenhum dado foi enviado: base central desconectada.';return;}
+   const approved=window.confirm(summary+'\\n\\nATENÇÃO: a importação atualizará a carteira no Supabase, incluindo parcelas e situação ativa dos clientes. Deseja continuar?');
+   if(!approved){box.className='notice';box.textContent=summary+' Importação cancelada; nenhuma gravação realizada.';return;}
    if(window.CMCloud?.ready){const r=await importParsedToCloud(file,parsed);box.className='notice ok';box.textContent=`Base central confirmada: ${r.code} — ${r.confirmados} clientes e ${r.docs} documentos gravados no Supabase. Os agentes vinculados já podem acessar os dados.`;render();}
    else throw new Error('A base central ainda não está conectada.');
  }catch(err){box.className='notice bad';box.textContent='Erro: '+err.message}finally{e.target.value=''}
@@ -379,7 +437,7 @@ $('restoreInput').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{
 
 async function loadCentralData(){
  const cloud=window.CMCloud;if(!cloud?.ready)return;
- const {data:clients,error}=await cloud.client.from('clientes').select('id,carteira_id,codigo,nome,cpf_cnpj,cidade,telefone,responsaveis,ultimo_pagamento,parcelas_atraso,maior_atraso,valor_k,ativo,atualizado_pdf_em,parcelas(id,numero_documento,contrato,numero_parcela,total_parcelas,vencimento,valor_receber,saldo,dias_atraso)').eq('ativo',true);
+ const {data:clients,error}=await cloud.client.from('clientes').select('id,carteira_id,codigo,nome,cpf_cnpj,cidade,endereco,bairro,cep,telefone,responsaveis,ultimo_pagamento,parcelas_atraso,maior_atraso,valor_k,ativo,atualizado_pdf_em,parcelas(id,numero_documento,contrato,numero_parcela,total_parcelas,vencimento,valor_receber,saldo,dias_atraso)').eq('ativo',true);
  if(error)throw error;
  const {data:hist,error:herr}=await cloud.client.from('cobrancas').select('id,cliente_id,usuario_id,observacao,previsao_pagamento,created_at').order('created_at',{ascending:true});
  if(herr)throw herr;
@@ -399,7 +457,7 @@ async function loadCentralData(){
      history.push({cloudId:h.id,type:'cobranca',note:h.observacao||'Cobrança registrada',promiseDate:h.previsao_pagamento||'',at:h.created_at,authorName:authorNames[h.usuario_id]||'Responsável não identificado'});
    }
    const key=recordKey(carteira.codigo,row.codigo);
-   out[key]={id:key,cloudId:row.id,code:row.codigo,name:row.nome,cpf:row.cpf_cnpj||'',agent:carteira.codigo,city:row.cidade||'',phone:row.telefone||'',whatsapp:row.telefone||'',responsibles:row.responsaveis||{},lastPayment:row.ultimo_pagamento?localDate(row.ultimo_pagamento):'',installments:(row.parcelas||[]).map(x=>({cloudId:x.id,parcel:x.numero_documento||'',contract:x.contrato||'',installmentNumber:x.numero_parcela,totalInstallments:x.total_parcelas,due:x.vencimento,daysLate:x.dias_atraso||0,valorReceber:Number(x.valor_receber||0),saldo:Number(x.saldo||0),valorK:0})),valorKTotal:Number(row.valor_k||0),promiseDate,history,paid:false,archived:false,pdfUpdatedAt:row.atualizado_pdf_em||'',reportDate:''};
+   out[key]={id:key,cloudId:row.id,code:row.codigo,name:row.nome,cpf:row.cpf_cnpj||'',agent:carteira.codigo,city:row.cidade||'',address:row.endereco||'',neighborhood:row.bairro||'',zipCode:row.cep||'',phone:row.telefone||'',whatsapp:row.telefone||'',responsibles:row.responsaveis||{},lastPayment:row.ultimo_pagamento?localDate(row.ultimo_pagamento):'',installments:(row.parcelas||[]).map(x=>({cloudId:x.id,parcel:x.numero_documento||'',contract:x.contrato||'',installmentNumber:x.numero_parcela,totalInstallments:x.total_parcelas,due:x.vencimento,daysLate:x.dias_atraso||0,valorReceber:Number(x.valor_receber||0),saldo:Number(x.saldo||0),valorK:0})),valorKTotal:Number(row.valor_k||0),promiseDate,history,paid:false,archived:false,pdfUpdatedAt:row.atualizado_pdf_em||'',reportDate:''};
  }
  cloudClients=out;
  const {data:imports}=await cloud.client.from('importacoes').select('clientes,documentos,valor_k,created_at').order('created_at',{ascending:false}).limit(1);
