@@ -3,8 +3,10 @@ const DBKEY='cmbrasil_cobrancas_v01';
 let state=JSON.parse(localStorage.getItem(DBKEY)||'{"clients":{},"summary":null,"lastImport":null}');
 let currentId=null, deferredPrompt=null, showAllPriorities=false;
 let cloudClients={}, cloudSummary=null, cloudLastImport=null;
-const APP_VERSION='1.0.0-alpha.4.7';
-window.CM_APP_BUILD='alpha4.7-history-authors';
+const ACTIVE_PORTFOLIOS=['XAMA1','XAMA2','XAMA3','XAMA4','XAMA6'];
+const isActivePortfolio=code=>ACTIVE_PORTFOLIOS.includes(String(code||'').trim().toUpperCase());
+const APP_VERSION='1.0.0-alpha.4.8.3';
+window.CM_APP_BUILD='alpha4.8.3-active-portfolios';
 
 function recordKey(agent,code){return `${(agent||'SEM-AGENTE').trim()}::${code}`}
 function migrateState(){
@@ -55,7 +57,7 @@ function migrateState(){
 migrateState();
 
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('./service-worker.js?v=1.0-alpha4.7',{updateViaCache:'none'}).then(reg=>{
+  navigator.serviceWorker.register('./service-worker.js?v=1.0-alpha4.8.3',{updateViaCache:'none'}).then(reg=>{
     reg.update().catch(()=>{});
     const revealUpdate=()=>{if(reg.waiting)$('updateBtn').hidden=false};
     revealUpdate();
@@ -89,8 +91,8 @@ function totalK(c){return c.valorKTotal!=null?Number(c.valorKTotal||0):(c.instal
 function normalizePhone(s){return (s||'').replace(/\D/g,'')}
 function activeClients(){
  const cloud=window.CMCloud;
- if(cloud?.ready) return Object.values(cloudClients).filter(c=>!c.paid&&!c.archived);
- return Object.values(state.clients).filter(c=>!c.paid&&!c.archived)
+ if(cloud?.ready) return Object.values(cloudClients).filter(c=>isActivePortfolio(c.agent)&&!c.paid&&!c.archived);
+ return Object.values(state.clients).filter(c=>isActivePortfolio(c.agent)&&!c.paid&&!c.archived)
 }
 function agentsAvailable(){return [...new Set(activeClients().map(c=>c.agent).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'))}
 
@@ -371,6 +373,8 @@ async function extractPDF(file){
 async function importParsedToCloud(file,parsed){
  const cloud=window.CMCloud;if(cloud.profile?.perfil!=='gestor')throw new Error('Somente o gestor pode importar PDFs.');
  const code=(parsed.agent||parsed.clients[0]?.agent||'').trim();
+ if(!isActivePortfolio(code))throw new Error('Carteira inativa ou não autorizada para importação: '+code+'. Carteiras permitidas: '+ACTIVE_PORTFOLIOS.join(', '));
+ if(parsed.clients.some(c=>!isActivePortfolio(c.agent)||c.agent.toUpperCase()!==code.toUpperCase()))throw new Error('O PDF contém registros de outra carteira ou carteira extinta.');
  const carteira=(cloud.carteiras||[]).find(c=>c.codigo.toUpperCase()===code.toUpperCase());
  if(!carteira)throw new Error(`A carteira ${code||'não identificada'} não está cadastrada na base central.`);
  const now=new Date().toISOString();
@@ -449,7 +453,7 @@ async function loadCentralData(){
  const carteiraById=Object.fromEntries((cloud.carteiras||[]).map(c=>[c.id,c]));
  const out={};
  for(const row of clients||[]){
-   const carteira=carteiraById[row.carteira_id];if(!carteira)continue;
+   const carteira=carteiraById[row.carteira_id];if(!carteira||!isActivePortfolio(carteira.codigo))continue;
    const hs=byClient[row.id]||[];let promiseDate='';const history=[];
    for(const h of hs){
      if(h.observacao==='[AGENDAMENTO_REMOVIDO]'){promiseDate='';history.push({cloudId:h.id,type:'cobranca',note:'Agendamento removido',promiseDate:'',at:h.created_at,authorName:authorNames[h.usuario_id]||'Responsável não identificado'});continue}
