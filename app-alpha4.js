@@ -5,8 +5,8 @@ let currentId=null, deferredPrompt=null, showAllPriorities=false;
 let cloudClients={}, cloudSummary=null, cloudLastImport=null;
 const ACTIVE_PORTFOLIOS=['XAMA1','XAMA2','XAMA3','XAMA4','XAMA6'];
 const isActivePortfolio=code=>ACTIVE_PORTFOLIOS.includes(String(code||'').trim().toUpperCase());
-const APP_VERSION='1.0.0-alpha.4.8.3';
-window.CM_APP_BUILD='alpha4.8.3-active-portfolios';
+const APP_VERSION='1.0.0-alpha.4.8.4';
+window.CM_APP_BUILD='alpha4.8.4-client-gps';
 
 function recordKey(agent,code){return `${(agent||'SEM-AGENTE').trim()}::${code}`}
 function migrateState(){
@@ -57,7 +57,7 @@ function migrateState(){
 migrateState();
 
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('./service-worker.js?v=1.0-alpha4.8.3',{updateViaCache:'none'}).then(reg=>{
+  navigator.serviceWorker.register('./service-worker.js?v=1.0-alpha4.8.4',{updateViaCache:'none'}).then(reg=>{
     reg.update().catch(()=>{});
     const revealUpdate=()=>{if(reg.waiting)$('updateBtn').hidden=false};
     revealUpdate();
@@ -209,6 +209,58 @@ function renderResponsibles(c){
  $('responsiblesSection').hidden=!cards.length;
  $('responsiblesList').innerHTML=cards.join('');
 }
+
+function savedGeo(c){const g=c?.responsibles?.clientLocation;return g&&Number.isFinite(Number(g.lat))&&Number.isFinite(Number(g.lng))?g:null}
+function geoMapsUrl(g){return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(g.lat+','+g.lng)}
+function parseMapCoordinates(value){
+ const s=String(value||'').trim();if(!s)return null;
+ let m=s.match(/(?:[?&](?:q|query|ll)=|@)(-?\d{1,2}\.\d+),\s*(-?\d{1,3}\.\d+)/i)||s.match(/^(-?\d{1,2}(?:\.\d+)?)[,;\s]+(-?\d{1,3}(?:\.\d+)?)$/);
+ if(!m)m=s.match(/!3d(-?\d{1,2}\.\d+)!4d(-?\d{1,3}\.\d+)/);
+ if(!m)return null;
+ const lat=Number(m[1]),lng=Number(m[2]);return Number.isFinite(lat)&&Number.isFinite(lng)&&lat>=-90&&lat<=90&&lng>=-180&&lng<=180?{lat,lng}:null;
+}
+function renderClientLocation(c){
+ const g=savedGeo(c),el=$('clientLocationInfo'),link=$('clientLocationMaps'),input=$('clientLocationInput');
+ el.textContent=g?'Localização salva: '+Number(g.lat).toFixed(6)+', '+Number(g.lng).toFixed(6)+(g.savedAt?' • '+new Date(g.savedAt).toLocaleString('pt-BR'):''):'Nenhuma localização cadastrada.';
+ link.hidden=!g;if(g)link.href=geoMapsUrl(g);
+ input.value=g?g.lat+', '+g.lng:'';
+ $('clientLocationStatus').textContent='';
+}
+async function saveClientGeo(coords){
+ const c=getClient(currentId);if(!c)return;
+ const cloud=window.CMCloud;
+ if(!cloud?.ready||!c.cloudId){$('clientLocationStatus').textContent='Conecte-se à base central para salvar a localização.';return}
+ const btn=$('saveClientLocation');btn.disabled=true;$('captureClientLocation').disabled=true;
+ $('clientLocationStatus').textContent='Salvando localização na base central...';
+ try{
+   const {data:row,error:readError}=await cloud.client.from('clientes').select('responsaveis').eq('id',c.cloudId).single();
+   if(readError)throw readError;
+   const location={lat:coords.lat,lng:coords.lng,savedAt:new Date().toISOString(),savedBy:cloud.user?.id||null};
+   const responsaveis={...(row.responsaveis||{}),clientLocation:location};
+   const {data:updated,error}=await cloud.client.from('clientes').update({responsaveis}).eq('id',c.cloudId).select('id,responsaveis').single();
+   if(error)throw error;
+   if(!updated?.responsaveis?.clientLocation)throw new Error('A base não confirmou a gravação.');
+   c.responsibles=updated.responsaveis;
+   renderClientLocation(c);
+   $('clientLocationStatus').textContent='Localização salva no Supabase. Será mantida nas próximas importações de PDF.';
+ }catch(err){$('clientLocationStatus').textContent='Não foi possível salvar: '+err.message}
+ finally{btn.disabled=false;$('captureClientLocation').disabled=false}
+}
+$('saveClientLocation').onclick=()=>{
+ const coords=parseMapCoordinates($('clientLocationInput').value);
+ if(!coords){$('clientLocationStatus').textContent='Informe coordenadas (latitude, longitude) ou um link completo do Google Maps com coordenadas. Links curtos não são aceitos.';return}
+ saveClientGeo(coords);
+};
+$('captureClientLocation').onclick=()=>{
+ if(!navigator.geolocation){$('clientLocationStatus').textContent='GPS não disponível neste dispositivo.';return}
+ $('clientLocationStatus').textContent='Aguardando autorização do GPS...';
+ navigator.geolocation.getCurrentPosition(p=>{
+   const coords={lat:p.coords.latitude,lng:p.coords.longitude};
+   $('clientLocationInput').value=coords.lat+', '+coords.lng;
+   $('clientLocationStatus').textContent='Coordenadas capturadas. Confirme a localização e clique em Salvar localização.';
+ },e=>{$('clientLocationStatus').textContent='Não foi possível obter a localização: '+e.message},{enableHighAccuracy:true,timeout:20000,maximumAge:0});
+};
+
 function openClient(id){
  const c=getClient(id);if(!c)return;currentId=id;
  $('dName').textContent=c.name;$('dMeta').textContent=`${c.code||''} • ${c.cpf||''}`;
