@@ -351,7 +351,7 @@ function parsePDFText(text){
    const wa=(block.match(/https:\/\/wa\.me\/(\d+)/i)||[])[1]||'';
    const lastPayment=(block.match(/Último Pagamento:\s*(\d{2}\/\d{2}\/\d{4})/i)||[])[1]||'';
    const activity=field(block,'Atividade',['De que','Endereco']);
-   const line=field(block,'Linha',['Filial']);
+   const line=(block.match(/\bLinha:\s*([^\n]*?)\s+Filial:/i)||[])[1]?.trim()||'';
    const address=clientAddress.street, neighborhood=clientAddress.neighborhood, zipCode=clientAddress.zipCode;
    const installments=[];
    const rowRe=/(\d{8}-\d{2}-\d{3}\/\d+)\s+(\d{2}\/\d{2}\/\d{2})\s+([^\n]+)/g;let r;
@@ -374,9 +374,24 @@ async function importParsedToCloud(file,parsed){
  const carteira=(cloud.carteiras||[]).find(c=>c.codigo.toUpperCase()===code.toUpperCase());
  if(!carteira)throw new Error(`A carteira ${code||'não identificada'} não está cadastrada na base central.`);
  const now=new Date().toISOString();
+ // Preserva contatos e endereços já cadastrados quando o novo PDF não os informa.
+ const existing=await cloud.client.from('clientes').select('codigo,responsaveis,endereco,bairro,cep,cidade').eq('carteira_id',carteira.id);
+ if(existing.error)throw existing.error;
+ const existingByCode=new Map((existing.data||[]).map(x=>[String(x.codigo),x]));
+ const mergeResponsibles=(previous,current)=>{
+   const old=previous&&typeof previous==='object'?previous:{};
+   const incoming=current&&typeof current==='object'?current:{};
+   const oldGuarantors=Array.isArray(old.guarantors)?old.guarantors:[];
+   const newGuarantors=Array.isArray(incoming.guarantors)?incoming.guarantors:[];
+   const byCpf=new Map(oldGuarantors.filter(g=>g?.cpf).map(g=>[g.cpf.replace(/\D/g,''),g]));
+   const merged=newGuarantors.map(g=>{const prev=byCpf.get((g.cpf||'').replace(/\D/g,''))||{};return {...prev,...g,address:g.address||prev.address||null,spouse:g.spouse||prev.spouse||null};});
+   const found=new Set(newGuarantors.map(g=>(g.cpf||'').replace(/\D/g,'')));
+   for(const g of oldGuarantors){if(g?.cpf&&!found.has(g.cpf.replace(/\D/g,'')))merged.push(g);}
+   return {...old,...incoming,clientSpouse:incoming.clientSpouse||old.clientSpouse||null,guarantors:merged};
+ };
  let q=cloud.client.from('clientes').update({ativo:false,atualizado_pdf_em:now}).eq('carteira_id',carteira.id);
  let {error}=await q;if(error)throw error;
- const rows=parsed.clients.map(c=>({carteira_id:carteira.id,codigo:c.code,nome:c.name,cpf_cnpj:c.cpf||null,cidade:c.city||null,endereco:c.address||null,bairro:c.neighborhood||null,cep:c.zipCode||null,telefone:c.whatsapp||c.phone||null,responsaveis:c.responsibles||{},ultimo_pagamento:c.lastPayment?isoFromBR(c.lastPayment):null,parcelas_atraso:(c.installments||[]).length,maior_atraso:oldestDays(c),valor_k:totalK(c),ativo:true,atualizado_pdf_em:now}));
+ const rows=parsed.clients.map(c=>{const prev=existingByCode.get(String(c.code))||{};return {carteira_id:carteira.id,codigo:c.code,nome:c.name,cpf_cnpj:c.cpf||null,cidade:c.city||prev.cidade||null,endereco:c.address||prev.endereco||null,bairro:c.neighborhood||prev.bairro||null,cep:c.zipCode||prev.cep||null,telefone:c.whatsapp||c.phone||null,responsaveis:mergeResponsibles(prev.responsaveis,c.responsibles),ultimo_pagamento:c.lastPayment?isoFromBR(c.lastPayment):null,parcelas_atraso:(c.installments||[]).length,maior_atraso:oldestDays(c),valor_k:totalK(c),ativo:true,atualizado_pdf_em:now}});
  const up=await cloud.client.from('clientes').upsert(rows,{onConflict:'carteira_id,codigo'}).select('id,codigo');
  if(up.error)throw up.error;
  if((up.data||[]).length!==rows.length)throw new Error(`A base central confirmou apenas ${(up.data||[]).length} de ${rows.length} clientes. A importação foi interrompida para evitar falso sucesso.`);
