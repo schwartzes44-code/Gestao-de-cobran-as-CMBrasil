@@ -316,10 +316,11 @@ function parseResponsibleContacts(block){
    const sm=tail.match(/Conjuge\s+([\s\S]*?)\s+-\s+(\d{3}\.\d{3}\.\d{3}-\d{2})\s+([\s\S]*?)(?=\s+Endere[cç]o:|$)/i);
    if(sm){const ct=contactFromText(sm[3]);g.spouse={name:sm[1].replace(/\s+/g,' ').trim(),cpf:sm[2],phone:ct.phone,whatsapp:ct.whatsapp};}
    // O endereço pertence ao avalista corrente; nunca ao cliente ou ao próximo avalista.
-   const addrMatch=tail.match(/Endere[cç]o\s*:?\s*([\s\S]*?)(?=\s+Conjuge\b|\s+Parcela\s+Vencto|$)/i);
+   const addrMatch=tail.match(/Endere[cç]o\s*:?\s*([^\n]*?)(?:\s+ERP Partner|\s+Parcela\s+Vencto|$)/i);
    if(addrMatch){
-     const addr=pdfAddressFields('Endereco: '+addrMatch[1]);
-     if(addr.street||addr.neighborhood||addr.city||addr.zipCode)g.address=addr;
+     const line=addrMatch[1].replace(/\s+/g,' ').trim();
+     const parts=line.match(/^(.+?)\s+-\s+(\d{5}-?\d{3})\s+-\s+Bairro\s+(.+?)\s+-\s+(.+)$/i);
+     if(parts)g.address={street:parts[1].replace(/,\s*$/,'').trim(),zipCode:parts[2],neighborhood:parts[3].trim(),city:parts[4].trim()};
    }
    result.guarantors.push(g);
  }
