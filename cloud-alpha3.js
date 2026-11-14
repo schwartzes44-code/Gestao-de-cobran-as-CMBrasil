@@ -34,7 +34,7 @@ async function loadCloudAccess(user){
 
   window.CMCloud.user=user;
   window.CMCloud.profile=profile;
-  window.CMCloud.carteiras=carteiras||[];
+  window.CMCloud.carteiras=(carteiras||[]).filter(c=>['XAMA1','XAMA2','XAMA3','XAMA4','XAMA6'].includes(String(c.codigo||'').trim().toUpperCase()));
   window.CMCloud.ready=true;
   return window.CMCloud;
 }
@@ -49,8 +49,8 @@ function applyCloudIdentity(){
     ? `${cloud.profile.nome} • Gestor`
     : `${cloud.profile.nome} • ${codigos.join(', ')||'Sem carteira'}`;
   byId('cloudStatus').textContent=gestor
-    ? `Base central conectada • Alpha 4.7 • ${cloud.carteiras.length} carteira(s) cadastrada(s)`
-    : `Base central conectada • Alpha 4.7 • carteira ${codigos.join(', ')||'não vinculada'}`;
+    ? `Base central conectada • Alpha 4.8.3 • ${cloud.carteiras.length} carteira(s) cadastrada(s)`
+    : `Base central conectada • Alpha 4.8.3 • carteira ${codigos.join(', ')||'não vinculada'}`;
   byId('managerImportLabel').hidden=!gestor;
   byId('managerImportLabel').style.display=gestor?'inline-flex':'none';
   byId('localDataPanel').hidden=!gestor;
