@@ -411,50 +411,6 @@ async function importParsedToCloud(file,parsed){
  await loadCentralData();
  return {code,clientes:parsed.clients.length,docs,confirmados:Number(verify.count||0)};
 }
-async function importAddressesOnly(parsed){
- const cloud=window.CMCloud;
- if(!cloud?.ready||cloud.profile?.perfil!=='gestor')throw new Error('É necessário acesso de gestor à base central.');
- const code=(parsed.agent||parsed.clients[0]?.agent||'').trim();
- const carteira=(cloud.carteiras||[]).find(c=>c.codigo.toUpperCase()===code.toUpperCase());
- if(!carteira)throw new Error('Carteira não cadastrada: '+code);
- if(parsed.clients.some(c=>c.agent!==code))throw new Error('O PDF contém mais de uma carteira. Use um relatório individual.');
- const current=await cloud.client.from('clientes').select('id,codigo,responsaveis,endereco,bairro,cep,cidade').eq('carteira_id',carteira.id);
- if(current.error)throw current.error;
- const existing=new Map((current.data||[]).map(c=>[String(c.codigo),c]));
- const candidates=parsed.clients.filter(c=>existing.has(String(c.code))&&(c.address||c.neighborhood||c.zipCode||c.responsibles?.guarantors?.some(g=>g.address)));
- if(!candidates.length)throw new Error('Nenhum cliente existente com endereço novo encontrado. Nenhuma alteração realizada.');
- const preview='Carteira '+code+': '+candidates.length+' clientes existentes com informações de endereço. Esta ação atualiza SOMENTE endereços e dados de avalistas, preservando parcelas, situação ativa, observações e agendamentos. Continuar?';
- if(!window.confirm(preview))return {cancelled:true};
- let done=0;
- for(const c of candidates){
-   const prev=existing.get(String(c.code));
-   const old=prev.responsaveis||{},incoming=c.responsibles||{};
-   const prevGs=Array.isArray(old.guarantors)?old.guarantors:[];
-   const nextGs=Array.isArray(incoming.guarantors)?incoming.guarantors:[];
-   const byCpf=new Map(prevGs.filter(g=>g?.cpf).map(g=>[g.cpf.replace(/\D/g,''),g]));
-   const merged=nextGs.map(g=>{const prior=byCpf.get((g.cpf||'').replace(/\D/g,''))||{};return {...prior,...g,phone:g.phone||prior.phone||'',whatsapp:g.whatsapp||prior.whatsapp||'',spouse:g.spouse||prior.spouse||null,address:g.address||prior.address||null};});
-   const present=new Set(nextGs.map(g=>(g.cpf||'').replace(/\D/g,'')));
-   for(const g of prevGs)if(g?.cpf&&!present.has(g.cpf.replace(/\D/g,'')))merged.push(g);
-   const changes={endereco:c.address||prev.endereco||null,bairro:c.neighborhood||prev.bairro||null,cep:c.zipCode||prev.cep||null,cidade:c.city||prev.cidade||null,responsaveis:{...old,...incoming,clientSpouse:incoming.clientSpouse||old.clientSpouse||null,guarantors:merged}};
-   const result=await cloud.client.from('clientes').update(changes).eq('id',prev.id).eq('carteira_id',carteira.id);
-   if(result.error)throw new Error('Atualizados '+done+' clientes; erro no código '+c.code+': '+result.error.message);
-   done++;
- }
- await loadCentralData();
- return {done};
-}
-$('addressPdfInput').onchange=async e=>{
- const file=e.target.files[0];if(!file)return;
- const box=$('importStatus');box.hidden=false;box.className='notice';box.textContent='Lendo PDF para atualizar somente endereços...';
- try{
-   const parsed=parsePDFText(await extractPDF(file));
-   if(!parsed.clients.length)throw new Error('Nenhum cliente reconhecido.');
-   const result=await importAddressesOnly(parsed);
-   box.className='notice '+(result.cancelled?'':'ok');
-   box.textContent=result.cancelled?'Atualização de endereços cancelada.':'Endereços atualizados para '+result.done+' clientes existentes. Parcelas e histórico de cobrança não foram modificados.';
- }catch(err){box.className='notice bad';box.textContent='Erro: '+err.message}
- finally{e.target.value=''}
-};
 $('pdfInput').onchange=async e=>{
  const file=e.target.files[0];if(!file)return;const box=$('importStatus');box.hidden=false;box.className='notice';box.textContent='Lendo PDF e sincronizando com a base central...';
  try{
