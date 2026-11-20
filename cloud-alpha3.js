@@ -34,7 +34,7 @@ async function loadCloudAccess(user){
 
   window.CMCloud.user=user;
   window.CMCloud.profile=profile;
-  window.CMCloud.carteiras=(carteiras||[]).filter(c=>['XAMA1','XAMA2','XAMA3','XAMA4','XAMA6'].includes(String(c.codigo||'').trim().toUpperCase()));
+  window.CMCloud.carteiras=(carteiras||[]).filter(c=>['XAMA1','XAMA2','XAMA3','XAMA4','XAMA6','JE CRED.','JE CRED01','JE CRED02','JE CRED03','JE CRED04'].includes(String(c.codigo||'').trim().replace(/\s+/g,' ').toUpperCase()));
   window.CMCloud.ready=true;
   return window.CMCloud;
 }
@@ -42,15 +42,15 @@ async function loadCloudAccess(user){
 function applyCloudIdentity(){
   const cloud=window.CMCloud;
   const gestor=cloud.profile?.perfil==='gestor';
-  const codigos=(cloud.carteiras||[]).map(c=>c.codigo);
+  const codigos=(cloud.carteiras||[]).map(c=>({'XAMA1':'JE CRED.','XAMA2':'JE CRED01','XAMA3':'JE CRED02','XAMA4':'JE CRED03','XAMA6':'JE CRED04'}[c.codigo]||c.codigo));
   document.body.dataset.role=gestor?'gestor':'agente';
   const importStatus=byId('importStatus'); if(importStatus){importStatus.hidden=true;importStatus.textContent='';importStatus.className='notice';}
   byId('userIdentity').textContent=gestor
     ? `${cloud.profile.nome} • Gestor`
     : `${cloud.profile.nome} • ${codigos.join(', ')||'Sem carteira'}`;
   byId('cloudStatus').textContent=gestor
-    ? `Base central conectada • Alpha 4.8.4 • ${cloud.carteiras.length} carteira(s) cadastrada(s)`
-    : `Base central conectada • Alpha 4.8.4 • carteira ${codigos.join(', ')||'não vinculada'}`;
+    ? `Base central conectada • Alpha 4.8.5 • ${cloud.carteiras.length} carteira(s) cadastrada(s)`
+    : `Base central conectada • Alpha 4.8.5 • carteira ${codigos.join(', ')||'não vinculada'}`;
   byId('managerImportLabel').hidden=!gestor;
   byId('managerImportLabel').style.display=gestor?'inline-flex':'none';
   byId('localDataPanel').hidden=!gestor;
