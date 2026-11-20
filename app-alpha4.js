@@ -3,10 +3,13 @@ const DBKEY='cmbrasil_cobrancas_v01';
 let state=JSON.parse(localStorage.getItem(DBKEY)||'{"clients":{},"summary":null,"lastImport":null}');
 let currentId=null, deferredPrompt=null, showAllPriorities=false;
 let cloudClients={}, cloudSummary=null, cloudLastImport=null;
-const ACTIVE_PORTFOLIOS=['XAMA1','XAMA2','XAMA3','XAMA4','XAMA6'];
-const isActivePortfolio=code=>ACTIVE_PORTFOLIOS.includes(String(code||'').trim().toUpperCase());
-const APP_VERSION='1.0.0-alpha.4.8.4';
-window.CM_APP_BUILD='alpha4.8.4-client-gps';
+const PORTFOLIO_NAMES={'XAMA1':'JE CRED.','XAMA2':'JE CRED01','XAMA3':'JE CRED02','XAMA4':'JE CRED03','XAMA6':'JE CRED04'};
+const canonicalPortfolio=code=>{const s=String(code||'').trim().replace(/\s+/g,' ').toUpperCase();return PORTFOLIO_NAMES[s]||s;};
+const portfolioMatches=(a,b)=>canonicalPortfolio(a)===canonicalPortfolio(b);
+const ACTIVE_PORTFOLIOS=Object.values(PORTFOLIO_NAMES);
+const isActivePortfolio=code=>ACTIVE_PORTFOLIOS.includes(canonicalPortfolio(code));
+const APP_VERSION='1.0.0-alpha.4.8.5';
+window.CM_APP_BUILD='alpha4.8.5-jecred-portfolios';
 
 function recordKey(agent,code){return `${(agent||'SEM-AGENTE').trim()}::${code}`}
 function migrateState(){
@@ -57,7 +60,7 @@ function migrateState(){
 migrateState();
 
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('./service-worker.js?v=1.0-alpha4.8.4',{updateViaCache:'none'}).then(reg=>{
+  navigator.serviceWorker.register('./service-worker.js?v=1.0-alpha4.8.5',{updateViaCache:'none'}).then(reg=>{
     reg.update().catch(()=>{});
     const revealUpdate=()=>{if(reg.waiting)$('updateBtn').hidden=false};
     revealUpdate();
@@ -424,10 +427,10 @@ async function extractPDF(file){
 }
 async function importParsedToCloud(file,parsed){
  const cloud=window.CMCloud;if(cloud.profile?.perfil!=='gestor')throw new Error('Somente o gestor pode importar PDFs.');
- const code=(parsed.agent||parsed.clients[0]?.agent||'').trim();
+ const code=canonicalPortfolio(parsed.agent||parsed.clients[0]?.agent||'');
  if(!isActivePortfolio(code))throw new Error('Carteira inativa ou não autorizada para importação: '+code+'. Carteiras permitidas: '+ACTIVE_PORTFOLIOS.join(', '));
- if(parsed.clients.some(c=>!isActivePortfolio(c.agent)||c.agent.toUpperCase()!==code.toUpperCase()))throw new Error('O PDF contém registros de outra carteira ou carteira extinta.');
- const carteira=(cloud.carteiras||[]).find(c=>c.codigo.toUpperCase()===code.toUpperCase());
+ if(parsed.clients.some(c=>!isActivePortfolio(c.agent)||!portfolioMatches(c.agent,code)))throw new Error('O PDF contém registros de outra carteira ou carteira extinta.');
+ const carteira=(cloud.carteiras||[]).find(c=>portfolioMatches(c.codigo,code));
  if(!carteira)throw new Error(`A carteira ${code||'não identificada'} não está cadastrada na base central.`);
  const now=new Date().toISOString();
  // Preserva contatos e endereços já cadastrados quando o novo PDF não os informa.
@@ -512,8 +515,9 @@ async function loadCentralData(){
      if(h.previsao_pagamento)promiseDate=h.previsao_pagamento;
      history.push({cloudId:h.id,type:'cobranca',note:h.observacao||'Cobrança registrada',promiseDate:h.previsao_pagamento||'',at:h.created_at,authorName:authorNames[h.usuario_id]||'Responsável não identificado'});
    }
-   const key=recordKey(carteira.codigo,row.codigo);
-   out[key]={id:key,cloudId:row.id,code:row.codigo,name:row.nome,cpf:row.cpf_cnpj||'',agent:carteira.codigo,city:row.cidade||'',address:row.endereco||'',neighborhood:row.bairro||'',zipCode:row.cep||'',phone:row.telefone||'',whatsapp:row.telefone||'',responsibles:row.responsaveis||{},lastPayment:row.ultimo_pagamento?localDate(row.ultimo_pagamento):'',installments:(row.parcelas||[]).map(x=>({cloudId:x.id,parcel:x.numero_documento||'',contract:x.contrato||'',installmentNumber:x.numero_parcela,totalInstallments:x.total_parcelas,due:x.vencimento,daysLate:x.dias_atraso||0,valorReceber:Number(x.valor_receber||0),saldo:Number(x.saldo||0),valorK:0})),valorKTotal:Number(row.valor_k||0),promiseDate,history,paid:false,archived:false,pdfUpdatedAt:row.atualizado_pdf_em||'',reportDate:''};
+   const displayPortfolio=canonicalPortfolio(carteira.codigo);
+    const key=recordKey(displayPortfolio,row.codigo);
+   out[key]={id:key,cloudId:row.id,code:row.codigo,name:row.nome,cpf:row.cpf_cnpj||'',agent:displayPortfolio,city:row.cidade||'',address:row.endereco||'',neighborhood:row.bairro||'',zipCode:row.cep||'',phone:row.telefone||'',whatsapp:row.telefone||'',responsibles:row.responsaveis||{},lastPayment:row.ultimo_pagamento?localDate(row.ultimo_pagamento):'',installments:(row.parcelas||[]).map(x=>({cloudId:x.id,parcel:x.numero_documento||'',contract:x.contrato||'',installmentNumber:x.numero_parcela,totalInstallments:x.total_parcelas,due:x.vencimento,daysLate:x.dias_atraso||0,valorReceber:Number(x.valor_receber||0),saldo:Number(x.saldo||0),valorK:0})),valorKTotal:Number(row.valor_k||0),promiseDate,history,paid:false,archived:false,pdfUpdatedAt:row.atualizado_pdf_em||'',reportDate:''};
  }
  cloudClients=out;
  const {data:imports}=await cloud.client.from('importacoes').select('clientes,documentos,valor_k,created_at').order('created_at',{ascending:false}).limit(1);
